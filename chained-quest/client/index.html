@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Humanoid Chained Quests - Multiplayer</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            color: white;
+        }
+        #gameUI {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px;
+            z-index: 100;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #waitingMessage {
+            font-size: 24px;
+            color: white;
+            margin-top: 20px;
+        }
+        #serverSelection {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #serverUrl {
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="info"></div>
+        <div id="serverSelection">
+            <h1>Humanoid Chained Quests</h1>
+            <input type="text" id="serverUrl" value="wss://your-server-url.onrender.com" placeholder="Enter server URL (wss://...)">
+            <button id="connectButton">Connect to Server</button>
+            <div id="connectionStatus"></div>
+        </div>
+        <div id="startScreen" style="display: none;">
+            <h1>Ready to Play</h1>
+            <button id="startButton">Start Game</button>
+            <div id="waitingMessage" style="display: none;">Waiting for another player...</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let camera, scene, renderer;
+        let character;
+        let remoteCharacter;
+        let ws;
+        let playerId;
+        let opponentId;
+        let isHost = false;
+        let gameStarted = false;
+        let serverUrl = '';
+        
+        const keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false
+        };
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            if (!serverUrl) {
+                alert('Please enter a server URL');
+                return;
+            }
+
+            try {
+                ws = new WebSocket(serverUrl);
+
+                ws.onopen = () => {
+                    document.getElementById('serverSelection').style.display = 'none';
+                    document.getElementById('startScreen').style.display = 'block';
+                    document.getElementById('connectionStatus').textContent = 'Connected!';
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    switch(data.type) {
+                        case 'wait':
+                            document.getElementById('waitingMessage').style.display = 'block';
+                            break;
+                        
+                        case 'start':
+                            playerId = data.playerId;
+                            opponentId = data.opponent;
+                            isHost = data.isHost;
+                            startGame();
+                            break;
+                        
+                        case 'gameUpdate':
+                            if (remoteCharacter) {
+                                remoteCharacter.position.copy(data.position);
+                                remoteCharacter.rotation.copy(data.rotation);
+                            }
+                            break;
+                        
+                        case 'playerDisconnected':
+                            alert('Other player disconnected');
+                            location.reload();
+                            break;
+                    }
+                };
+
+                ws.onclose = () => {
+                    alert('Connection lost. Please refresh the page.');
+                    location.reload();
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    document.getElementById('connectionStatus').textContent = 'Connection failed. Please check the server URL.';
+                };
+            } catch (error) {
+                console.error('WebSocket connection error:', error);
+                document.getElementById('connectionStatus').textContent = 'Invalid server URL format.';
+            }
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 1, 0);
+            scene.add(directionalLight);
+
+            // Create ground
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            // Create character
+            const characterGeometry = new THREE.BoxGeometry(1, 2, 1);
+            const characterMaterial = new THREE.MeshStandardMaterial({ color: isHost ? 0x00ff00 : 0xff0000 });
+            character = new THREE.Mesh(characterGeometry, characterMaterial);
+            character.position.y = 1;
+            scene.add(character);
+
+            // Create remote character
+            const remoteCharacterMaterial = new THREE.MeshStandardMaterial({ color: isHost ? 0xff0000 : 0x00ff00 });
+            remoteCharacter = new THREE.Mesh(characterGeometry, remoteCharacterMaterial);
+            remoteCharacter.position.y = 1;
+            scene.add(remoteCharacter);
+
+            camera.position.set(0, 5, 10);
+            camera.lookAt(character.position);
+
+            // Event listeners
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onKeyDown(event) {
+            switch(event.key.toLowerCase()) {
+                case 'w': keys.forward = true; break;
+                case 's': keys.backward = true; break;
+                case 'a': keys.left = true; break;
+                case 'd': keys.right = true; break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch(event.key.toLowerCase()) {
+                case 'w': keys.forward = false; break;
+                case 's': keys.backward = false; break;
+                case 'a': keys.left = false; break;
+                case 'd': keys.right = false; break;
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateCharacter() {
+            const moveSpeed = 0.1;
+            const rotateSpeed = 0.05;
+
+            if (keys.forward) character.translateZ(-moveSpeed);
+            if (keys.backward) character.translateZ(moveSpeed);
+            if (keys.left) character.rotation.y += rotateSpeed;
+            if (keys.right) character.rotation.y -= rotateSpeed;
+
+            // Update camera position relative to character
+            const offset = new THREE.Vector3(0, 5, 10);
+            offset.applyQuaternion(character.quaternion);
+            camera.position.copy(character.position).add(offset);
+            camera.lookAt(character.position);
+
+            // Send position update to server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'gameUpdate',
+                    playerId: playerId,
+                    targetId: opponentId,
+                    position: character.position,
+                    rotation: character.rotation,
+                    keys: keys
+                }));
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (gameStarted) {
+                updateCharacter();
+            }
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameStarted = true;
+            init();
+            animate();
+        }
+
+        // Update event listeners
+        document.getElementById('connectButton').addEventListener('click', () => {
+            serverUrl = document.getElementById('serverUrl').value.trim();
+            initWebSocket();
+        });
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('startButton').style.display = 'none';
+        });
+    </script>
+</body>
+</html> 

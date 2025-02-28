@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chained Quests</title>
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            padding: 5px;
+            background-color: rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #gameUI {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+        .viewport {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            overflow: hidden;
+        }
+        #viewport1 {
+            left: 0;
+            border-right: 2px solid rgba(255,255,255,0.3);
+        }
+        #viewport2 {
+            right: 0;
+            border-left: 2px solid rgba(255,255,255,0.3);
+        }
+        .playerLabel {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background-color: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 1001;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="viewport1" class="viewport">
+        <div class="playerLabel">Player 1</div>
+    </div>
+    <div id="viewport2" class="viewport">
+        <div class="playerLabel">Player 2</div>
+    </div>
+    <div id="info">Chained Quests - Use WASD to move & Mouse to control camera (P1) | Arrow keys to move & Mouse to control camera (P2)</div>
+    <div id="gameUI">
+        <div>Player 1 Keys: <span id="p1Keys">0</span>/3</div>
+        <div>Player 2 Keys: <span id="p2Keys">0</span>/3</div>
+    </div>
+    <div id="startScreen">
+        <h1>Chained Quests</h1>
+        <p>A cooperative puzzle game where players are chained together</p>
+        <button id="startButton">Start Game</button>
+        <p>Player 1: WASD to move, Mouse to control camera</p>
+        <p>Player 2: Arrow Keys to move, Mouse to control camera</p>
+        <p>Mouse controls: Left click and drag to rotate, scroll to zoom</p>
+        <p>Collect all keys and reach the exit portal together</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <script>
+        // Game state
+        let gameStarted = false;
+        let gameComplete = false;
+        
+        // Player states
+        const players = [
+            { 
+                keys: 0, 
+                body: null, 
+                mesh: null, 
+                camera: null, 
+                controls: { 
+                    up: false, 
+                    down: false, 
+                    left: false, 
+                    right: false 
+                },
+                cameraRotation: {
+                    horizontal: 0,
+                    vertical: Math.PI / 6
+                },
+                cameraDistance: 15,
+                mouseControl: false
+            },
+            { 
+                keys: 0, 
+                body: null, 
+                mesh: null, 
+                camera: null, 
+                controls: { 
+                    up: false, 
+                    down: false, 
+                    left: false, 
+                    right: false 
+                },
+                cameraRotation: {
+                    horizontal: 0,
+                    vertical: Math.PI / 6
+                },
+                cameraDistance: 15,
+                mouseControl: false
+            }
+        ];
+        
+        // Chain segments
+        const chainSegments = [];
+        const chainBodies = [];
+        
+        // Key objects
+        const keys = [];
+        const keyBodies = [];
+        
+        // Portal
+        let portal = null;
+        
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+        
+        // Mouse state
+        const mouse = {
+            x: 0,
+            y: 0,
+            leftButton: false,
+            rightButton: false
+        };
+
+        // Create renderers for split screen
+        const renderer1 = new THREE.WebGLRenderer({ antialias: true });
+        const renderer2 = new THREE.WebGLRenderer({ antialias: true });
+        renderer1.setSize(window.innerWidth / 2, window.innerHeight);
+        renderer2.setSize(window.innerWidth / 2, window.innerHeight);
+        renderer1.shadowMap.enabled = true;
+        renderer2.shadowMap.enabled = true;
+        document.getElementById('viewport1').appendChild(renderer1.domElement);
+        document.getElementById('viewport2').appendChild(renderer2.domElement);
+
+        // Create cameras for each player
+        players[0].camera = new THREE.PerspectiveCamera(75, (window.innerWidth/2) / window.innerHeight, 0.1, 1000);
+        players[1].camera = new THREE.PerspectiveCamera(75, (window.innerWidth/2) / window.innerHeight, 0.1, 1000);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+        
+        // Cannon.js physics setup
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+        
+        // Create ground
+        const groundGeometry = new THREE.BoxGeometry(50, 1, 50);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x999999,
+            roughness: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.position.y = -0.5;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Ground physics
+        const groundShape = new CANNON.Box(new CANNON.Vec3(25, 0.5, 25));
+        const groundBody = new CANNON.Body({ mass: 0 });
+        groundBody.addShape(groundShape);
+        groundBody.position.set(0, -0.5, 0);
+        world.addBody(groundBody);
+        
+        // Create obstacles
+        function createObstacle(x, y, z, width, height, depth) {
+            // Visual representation
+            const obstacleGeometry = new THREE.BoxGeometry(width, height, depth);
+            const obstacleMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x6688cc,
+                roughness: 0.7
+            });
+            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+            obstacle.position.set(x, y, z);
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+            
+            // Physics body
+            const obstacleShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+            const obstacleBody = new CANNON.Body({ mass: 0 });
+            obstacleBody.addShape(obstacleShape);
+            obstacleBody.position.set(x, y, z);
+            world.addBody(obstacleBody);
+        }
+        
+        // Create level with obstacles
+        function createLevel() {
+            // Central platform
+            createObstacle(0, 0, 0, 50, 1, 50);
+            
+            // Walls
+            createObstacle(-25, 5, 0, 1, 10, 50); // Left wall
+            createObstacle(25, 5, 0, 1, 10, 50);  // Right wall
+            createObstacle(0, 5, -25, 50, 10, 1); // Back wall
+            createObstacle(0, 5, 25, 50, 10, 1);  // Front wall
+            
+            // Maze obstacles
+            createObstacle(-15, 2, -10, 10, 4, 2);
+            createObstacle(15, 2, 10, 10, 4, 2);
+            createObstacle(-5, 2, 0, 2, 4, 20);
+            createObstacle(10, 2, -15, 2, 4, 15);
+            
+            // Create floating platforms
+            createObstacle(-15, 2, 15, 8, 1, 8);
+            createObstacle(15, 2, -15, 8, 1, 8);
+        }
+        
+        // Create players
+        function createPlayers() {
+            // Player 1
+            const player1Geometry = new THREE.SphereGeometry(1, 32, 32);
+            const player1Material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            players[0].mesh = new THREE.Mesh(player1Geometry, player1Material);
+            players[0].mesh.castShadow = true;
+            players[0].mesh.receiveShadow = true;
+            players[0].mesh.position.set(-10, 3, 0);
+            scene.add(players[0].mesh);
+            
+            // Player 1 physics
+            const player1Shape = new CANNON.Sphere(1);
+            players[0].body = new CANNON.Body({ mass: 5 });
+            players[0].body.addShape(player1Shape);
+            players[0].body.position.set(-10, 3, 0);
+            players[0].body.linearDamping = 0.5;
+            world.addBody(players[0].body);
+            
+            // Player 2
+            const player2Geometry = new THREE.SphereGeometry(1, 32, 32);
+            const player2Material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            players[1].mesh = new THREE.Mesh(player2Geometry, player2Material);
+            players[1].mesh.castShadow = true;
+            players[1].mesh.receiveShadow = true;
+            players[1].mesh.position.set(-8, 3, 0);
+            scene.add(players[1].mesh);
+            
+            // Player 2 physics
+            const player2Shape = new CANNON.Sphere(1);
+            players[1].body = new CANNON.Body({ mass: 5 });
+            players[1].body.addShape(player2Shape);
+            players[1].body.position.set(-8, 3, 0);
+            players[1].body.linearDamping = 0.5;
+            world.addBody(players[1].body);
+
+            // Initialize cameras
+            players.forEach((player, index) => {
+                player.camera = new THREE.PerspectiveCamera(75, window.innerWidth / 2 / window.innerHeight, 0.1, 1000);
+                player.camera.position.set(
+                    player.mesh.position.x,
+                    player.mesh.position.y + 10,
+                    player.mesh.position.z + 15
+                );
+                player.camera.lookAt(player.mesh.position);
+            });
+            
+            // Create chain between players
+            createChain(players[0].body, players[1].body, 5, 5);
+        }
+        
+        // Create chain segments
+        function createChain(bodyA, bodyB, length, segments) {
+            const segmentLength = length / segments;
+            let lastBody = bodyA;
+            
+            for (let i = 0; i < segments; i++) {
+                // Create segment visual
+                const chainGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const chainMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xaaaaaa,
+                    metalness: 0.7,
+                    roughness: 0.3
+                });
+                const chainMesh = new THREE.Mesh(chainGeometry, chainMaterial);
+                chainMesh.castShadow = true;
+                scene.add(chainMesh);
+                chainSegments.push(chainMesh);
+                
+                // Create segment physics
+                const chainShape = new CANNON.Sphere(0.3);
+                const chainBody = new CANNON.Body({ mass: 0.1 });
+                chainBody.addShape(chainShape);
+                const startPos = new CANNON.Vec3();
+                const endPos = new CANNON.Vec3();
+                
+                bodyA.position.copy(startPos);
+                bodyB.position.copy(endPos);
+                
+                const interpolatedPos = new CANNON.Vec3();
+                interpolatedPos.x = startPos.x + (endPos.x - startPos.x) * ((i + 1) / (segments + 1));
+                interpolatedPos.y = startPos.y + (endPos.y - startPos.y) * ((i + 1) / (segments + 1));
+                interpolatedPos.z = startPos.z + (endPos.z - startPos.z) * ((i + 1) / (segments + 1));
+                
+                chainBody.position.copy(interpolatedPos);
+                world.addBody(chainBody);
+                chainBodies.push(chainBody);
+                
+                // Create constraint to previous body
+                const constraint1 = new CANNON.DistanceConstraint(lastBody, chainBody, segmentLength);
+                world.addConstraint(constraint1);
+                
+                // Last segment gets connected to bodyB
+                if (i === segments - 1) {
+                    const constraint2 = new CANNON.DistanceConstraint(chainBody, bodyB, segmentLength);
+                    world.addConstraint(constraint2);
+                }
+                
+                lastBody = chainBody;
+            }
+        }
+        
+        // Create keys for collection
+        function createKeys() {
+            const keyPositions = [
+                { x: -20, y: 1.5, z: -20 },
+                { x: 20, y: 1.5, z: -20 },
+                { x: 20, y: 1.5, z: 20 },
+                { x: -20, y: 1.5, z: 20 },
+                { x: 0, y: 1.5, z: -20 },
+                { x: 0, y: 1.5, z: 20 }
+            ];
+            
+            for (let i = 0; i < 6; i++) {
+                // Key visual
+                const keyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 1, 8);
+                keyGeometry.rotateX(Math.PI / 2);
+                const keyMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xffff00,
+                    metalness: 0.7,
+                    roughness: 0.3,
+                    emissive: 0xffff00,
+                    emissiveIntensity: 0.3
+                });
+                const keyMesh = new THREE.Mesh(keyGeometry, keyMaterial);
+                keyMesh.castShadow = true;
+                keyMesh.position.set(keyPositions[i].x, keyPositions[i].y, keyPositions[i].z);
+                scene.add(keyMesh);
+                keys.push(keyMesh);
+                
+                // Create key physics as a trigger
+                const keyShape = new CANNON.Cylinder(0.2, 0.2, 1, 8);
+                const keyBody = new CANNON.Body({ mass: 0 });
+                keyBody.addShape(keyShape);
+                keyBody.position.set(keyPositions[i].x, keyPositions[i].y, keyPositions[i].z);
+                keyBody.collisionResponse = false; // Make it a trigger
+                world.addBody(keyBody);
+                keyBodies.push(keyBody);
+            }
+        }
+        
+        // Create exit portal
+        function createPortal() {
+            const portalGeometry = new THREE.TorusGeometry(2, 0.5, 16, 32);
+            const portalMaterial = new THREE.MeshStandardMaterial({
+                color: 0x00ff00,
+                emissive: 0x00ff00,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+            portal = new THREE.Mesh(portalGeometry, portalMaterial);
+            portal.position.set(0, 3, -20);
+            portal.rotation.x = Math.PI / 2;
+            scene.add(portal);
+            
+            // Add subtle animation
+            function animatePortal() {
+                portal.rotation.z += 0.01;
+                requestAnimationFrame(animatePortal);
+            }
+            animatePortal();
+        }
+        
+        // Handle key collection
+        function checkKeyCollection() {
+            for (let i = 0; i < keys.length; i++) {
+                if (!keys[i].visible) continue;
+                
+                for (let p = 0; p < players.length; p++) {
+                    const distance = players[p].mesh.position.distanceTo(keys[i].position);
+                    
+                    if (distance < 1.5) {
+                        // Collect key
+                        keys[i].visible = false;
+                        keyBodies[i].position.y = -100; // Move it away
+                        players[p].keys++;
+                        document.getElementById(`p${p+1}Keys`).textContent = players[p].keys;
+                        
+                        // Play sound effect (if we had one)
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Check for level completion
+        function checkCompletion() {
+            if (gameComplete) return;
+            
+            const totalKeys = players[0].keys + players[1].keys;
+            if (totalKeys < 6) return;
+            
+            // Check if both players are near the portal
+            const p1Distance = players[0].mesh.position.distanceTo(portal.position);
+            const p2Distance = players[1].mesh.position.distanceTo(portal.position);
+            
+            if (p1Distance < 3 && p2Distance < 3) {
+                gameComplete = true;
+                showGameComplete();
+            }
+        }
+        
+        // Show game complete screen
+        function showGameComplete() {
+            const completeScreen = document.createElement('div');
+            completeScreen.style.position = 'absolute';
+            completeScreen.style.top = '0';
+            completeScreen.style.left = '0';
+            completeScreen.style.width = '100%';
+            completeScreen.style.height = '100%';
+            completeScreen.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            completeScreen.style.display = 'flex';
+            completeScreen.style.flexDirection = 'column';
+            completeScreen.style.justifyContent = 'center';
+            completeScreen.style.alignItems = 'center';
+            completeScreen.style.color = 'white';
+            completeScreen.style.zIndex = '200';
+            
+            const title = document.createElement('h1');
+            title.textContent = 'Level Complete!';
+            
+            const message = document.createElement('p');
+            message.textContent = 'You successfully collected all keys and reached the portal together!';
+            
+            const restartButton = document.createElement('button');
+            restartButton.textContent = 'Restart Game';
+            restartButton.onclick = function() {
+                location.reload();
+            };
+            
+            completeScreen.appendChild(title);
+            completeScreen.appendChild(message);
+            completeScreen.appendChild(restartButton);
+            
+            document.body.appendChild(completeScreen);
+        }
+        
+        // Setup key controls
+        function setupControls() {
+            document.addEventListener('keydown', function(event) {
+                switch(event.key) {
+                    // Player 1 controls
+                    case 'w': players[0].controls.up = true; break;
+                    case 's': players[0].controls.down = true; break;
+                    case 'a': players[0].controls.left = true; break;
+                    case 'd': players[0].controls.right = true; break;
+                    
+                    // Player 2 controls
+                    case 'ArrowUp': players[1].controls.up = true; break;
+                    case 'ArrowDown': players[1].controls.down = true; break;
+                    case 'ArrowLeft': players[1].controls.left = true; break;
+                    case 'ArrowRight': players[1].controls.right = true; break;
+                }
+            });
+            
+            document.addEventListener('keyup', function(event) {
+                switch(event.key) {
+                    // Player 1 controls
+                    case 'w': players[0].controls.up = false; break;
+                    case 's': players[0].controls.down = false; break;
+                    case 'a': players[0].controls.left = false; break;
+                    case 'd': players[0].controls.right = false; break;
+                    
+                    // Player 2 controls
+                    case 'ArrowUp': players[1].controls.up = false; break;
+                    case 'ArrowDown': players[1].controls.down = false; break;
+                    case 'ArrowLeft': players[1].controls.left = false; break;
+                    case 'ArrowRight': players[1].controls.right = false; break;
+                }
+            });
+        }
+        
+        // Setup mouse controls
+        function setupMouseControls() {
+            document.addEventListener('mousemove', function(event) {
+                const prevX = mouse.x;
+                const prevY = mouse.y;
+                mouse.x = event.clientX;
+                mouse.y = event.clientY;
+
+                if (mouse.leftButton || mouse.rightButton) {
+                    const movementX = mouse.x - prevX;
+                    const movementY = mouse.y - prevY;
+
+                    // Determine which viewport was clicked
+                    const isLeftHalf = event.clientX < window.innerWidth / 2;
+                    const player = isLeftHalf ? players[0] : players[1];
+
+                    if (player.mouseControl) {
+                        // Rotate camera
+                        player.cameraRotation.horizontal -= movementX * 0.005;
+                        player.cameraRotation.vertical = Math.max(
+                            0.1,
+                            Math.min(Math.PI / 2, player.cameraRotation.vertical - movementY * 0.005)
+                        );
+                    }
+                }
+            });
+
+            document.addEventListener('mousedown', function(event) {
+                if (event.button === 0) mouse.leftButton = true;
+                if (event.button === 2) mouse.rightButton = true;
+
+                const isLeftHalf = event.clientX < window.innerWidth / 2;
+                const player = isLeftHalf ? players[0] : players[1];
+                player.mouseControl = true;
+            });
+
+            document.addEventListener('mouseup', function(event) {
+                if (event.button === 0) mouse.leftButton = false;
+                if (event.button === 2) mouse.rightButton = false;
+                players.forEach(player => player.mouseControl = false);
+            });
+
+            document.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+            });
+
+            document.addEventListener('wheel', function(event) {
+                const isLeftHalf = event.clientX < window.innerWidth / 2;
+                const player = isLeftHalf ? players[0] : players[1];
+
+                player.cameraDistance = Math.max(
+                    5,
+                    Math.min(30, player.cameraDistance + event.deltaY * 0.01)
+                );
+            });
+        }
+
+        // Update camera positions based on player positions and rotations
+        function updateCameras() {
+            players.forEach(player => {
+                if (!player.mesh) return;
+
+                const horizontalDist = Math.cos(player.cameraRotation.vertical) * player.cameraDistance;
+                const verticalDist = Math.sin(player.cameraRotation.vertical) * player.cameraDistance;
+
+                const cameraX = player.mesh.position.x + Math.sin(player.cameraRotation.horizontal) * horizontalDist;
+                const cameraZ = player.mesh.position.z + Math.cos(player.cameraRotation.horizontal) * horizontalDist;
+                const cameraY = player.mesh.position.y + verticalDist;
+
+                player.camera.position.set(cameraX, cameraY, cameraZ);
+                player.camera.lookAt(player.mesh.position);
+            });
+        }
+
+        // Modify applyControls for camera-relative movement
+        function applyControls() {
+            players.forEach((player, index) => {
+                const force = 15; // Reduced from 20 for better control
+                
+                if (player.controls.up || player.controls.down || player.controls.left || player.controls.right) {
+                    // Calculate movement direction based on camera angle
+                    const cameraAngle = player.cameraRotation.horizontal;
+                    const forwardX = Math.sin(cameraAngle);
+                    const forwardZ = Math.cos(cameraAngle);
+                    const rightX = Math.sin(cameraAngle + Math.PI/2);
+                    const rightZ = Math.cos(cameraAngle + Math.PI/2);
+
+                    let moveX = 0;
+                    let moveZ = 0;
+
+                    if (player.controls.up) {
+                        moveX -= forwardX;
+                        moveZ -= forwardZ;
+                    }
+                    if (player.controls.down) {
+                        moveX += forwardX;
+                        moveZ += forwardZ;
+                    }
+                    if (player.controls.left) {
+                        moveX -= rightX;
+                        moveZ -= rightZ;
+                    }
+                    if (player.controls.right) {
+                        moveX += rightX;
+                        moveZ += rightZ;
+                    }
+
+                    // Normalize movement vector
+                    const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                    if (length > 0) {
+                        moveX /= length;
+                        moveZ /= length;
+                    }
+
+                    player.body.applyImpulse(
+                        new CANNON.Vec3(moveX * force, 0, moveZ * force),
+                        player.body.position
+                    );
+                }
+
+                // Add more dampening for better control
+                player.body.velocity.scale(0.97);
+                player.body.angularVelocity.scale(0.97);
+            });
+        }
+        
+        // Update physics and visuals
+        function updatePhysics() {
+            // Update player meshes
+            players.forEach(player => {
+                if (player.body && player.mesh) {
+                    player.mesh.position.copy(player.body.position);
+                    player.mesh.quaternion.copy(player.body.quaternion);
+                }
+            });
+            
+            // Update chain segments
+            for (let i = 0; i < chainSegments.length; i++) {
+                chainSegments[i].position.copy(chainBodies[i].position);
+                chainSegments[i].quaternion.copy(chainBodies[i].quaternion);
+            }
+        }
+        
+        // Start the game
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameStarted = true;
+        }
+        
+        // Initialize the game
+        function init() {
+            // Create viewports if they don't exist
+            if (!document.getElementById('viewport1')) {
+                const viewport1 = document.createElement('div');
+                viewport1.id = 'viewport1';
+                viewport1.className = 'viewport';
+                const label1 = document.createElement('div');
+                label1.className = 'playerLabel';
+                label1.textContent = 'Player 1';
+                viewport1.appendChild(label1);
+                document.body.appendChild(viewport1);
+            }
+            
+            if (!document.getElementById('viewport2')) {
+                const viewport2 = document.createElement('div');
+                viewport2.id = 'viewport2';
+                viewport2.className = 'viewport';
+                const label2 = document.createElement('div');
+                label2.className = 'playerLabel';
+                label2.textContent = 'Player 2';
+                viewport2.appendChild(label2);
+                document.body.appendChild(viewport2);
+            }
+
+            createLevel();
+            createPlayers();
+            createKeys();
+            createPortal();
+            setupControls();
+            setupMouseControls();
+            
+            document.getElementById('startButton').addEventListener('click', startGame);
+            
+            animate();
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameStarted && !gameComplete) {
+                applyControls();
+                world.step(1/60);
+                updatePhysics();
+                updateCameras();
+                checkKeyCollection();
+                checkCompletion();
+            }
+            
+            // Render both viewports
+            renderer1.render(scene, players[0].camera);
+            renderer2.render(scene, players[1].camera);
+        }
+        
+        // Handle window resize for split screen
+        window.addEventListener('resize', function() {
+            const width = window.innerWidth / 2;
+            const height = window.innerHeight;
+            
+            players.forEach(player => {
+                if (player.camera) {
+                    player.camera.aspect = width / height;
+                    player.camera.updateProjectionMatrix();
+                }
+            });
+            
+            if (renderer1) renderer1.setSize(width, height);
+            if (renderer2) renderer2.setSize(width, height);
+        });
+        
+        // Initialize the game
+        init();
+    </script>
+</body>
+</html>
