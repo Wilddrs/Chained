@@ -148,10 +148,119 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 
     <script>
-        // Game state
+        let camera, scene, renderer;
+        let character;
+        let remoteCharacter;
+        let ws;
+        let playerId;
+        let opponentId;
+        let isHost = false;
         let gameStarted = false;
         let gameComplete = false;
+        let serverUrl = '';
         
+        // Player controls
+        const playerControls = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false
+        };
+
+        // Initialize WebSocket connection with debugging
+        function initWebSocket() {
+            const statusDiv = document.getElementById('connectionStatus');
+            const connectButton = document.getElementById('connectButton');
+            serverUrl = document.getElementById('serverUrl').value.trim();
+            
+            if (!serverUrl) {
+                statusDiv.textContent = 'Please enter a server URL';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            // Disable the connect button while connecting
+            connectButton.disabled = true;
+            statusDiv.textContent = 'Connecting...';
+            statusDiv.style.color = 'yellow';
+            console.log('Attempting to connect to:', serverUrl);
+
+            try {
+                ws = new WebSocket(serverUrl);
+
+                ws.onopen = () => {
+                    console.log('WebSocket connection established');
+                    statusDiv.textContent = 'Connected!';
+                    statusDiv.style.color = 'green';
+                    document.getElementById('serverSelection').style.display = 'none';
+                    document.getElementById('startScreen').style.display = 'block';
+                };
+
+                ws.onmessage = (event) => {
+                    console.log('Received message:', event.data);
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        switch(data.type) {
+                            case 'wait':
+                                document.getElementById('waitingMessage').style.display = 'block';
+                                break;
+                            
+                            case 'start':
+                                console.log('Game starting:', data);
+                                playerId = data.playerId;
+                                opponentId = data.opponent;
+                                isHost = data.isHost;
+                                startGame();
+                                break;
+                            
+                            case 'gameUpdate':
+                                if (remoteCharacter) {
+                                    remoteCharacter.position.copy(data.position);
+                                    remoteCharacter.rotation.copy(data.rotation);
+                                }
+                                break;
+                            
+                            case 'playerDisconnected':
+                                alert('Other player disconnected');
+                                location.reload();
+                                break;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                        statusDiv.textContent = 'Error processing server message';
+                        statusDiv.style.color = 'red';
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    console.log('WebSocket connection closed:', event);
+                    statusDiv.textContent = 'Connection closed. Please refresh the page.';
+                    statusDiv.style.color = 'red';
+                    connectButton.disabled = false;
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    statusDiv.textContent = 'Connection failed. Please check the server URL and try again.';
+                    statusDiv.style.color = 'red';
+                    connectButton.disabled = false;
+                };
+            } catch (error) {
+                console.error('Error creating WebSocket:', error);
+                statusDiv.textContent = 'Invalid server URL format.';
+                statusDiv.style.color = 'red';
+                connectButton.disabled = false;
+            }
+        }
+
+        // Add event listener for the connect button
+        document.getElementById('connectButton').addEventListener('click', () => {
+            console.log('Connect button clicked');
+            initWebSocket();
+        });
+
+        // Game state
         // Player states
         const players = [
             { 
@@ -204,7 +313,7 @@
         let portal = null;
         
         // Three.js setup
-        const scene = new THREE.Scene();
+        scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB); // Sky blue background
         
         // Mouse state
@@ -216,18 +325,14 @@
         };
 
         // Create renderers for split screen
-        const renderer1 = new THREE.WebGLRenderer({ antialias: true });
-        const renderer2 = new THREE.WebGLRenderer({ antialias: true });
-        renderer1.setSize(window.innerWidth / 2, window.innerHeight);
-        renderer2.setSize(window.innerWidth / 2, window.innerHeight);
-        renderer1.shadowMap.enabled = true;
-        renderer2.shadowMap.enabled = true;
-        document.getElementById('viewport1').appendChild(renderer1.domElement);
-        document.getElementById('viewport2').appendChild(renderer2.domElement);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('viewport1').appendChild(renderer.domElement);
 
         // Create cameras for each player
-        players[0].camera = new THREE.PerspectiveCamera(75, (window.innerWidth/2) / window.innerHeight, 0.1, 1000);
-        players[1].camera = new THREE.PerspectiveCamera(75, (window.innerWidth/2) / window.innerHeight, 0.1, 1000);
+        players[0].camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        players[1].camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
         // Lighting
         const ambientLight = new THREE.AmbientLight(0x404040);
@@ -346,7 +451,7 @@
 
             // Initialize cameras
             players.forEach((player, index) => {
-                player.camera = new THREE.PerspectiveCamera(75, window.innerWidth / 2 / window.innerHeight, 0.1, 1000);
+                player.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
                 player.camera.position.set(
                     player.mesh.position.x,
                     player.mesh.position.y + 10,
@@ -781,13 +886,12 @@
             }
             
             // Render both viewports
-            renderer1.render(scene, players[0].camera);
-            renderer2.render(scene, players[1].camera);
+            renderer.render(scene, players[0].camera);
         }
         
         // Handle window resize for split screen
         window.addEventListener('resize', function() {
-            const width = window.innerWidth / 2;
+            const width = window.innerWidth;
             const height = window.innerHeight;
             
             players.forEach(player => {
@@ -797,8 +901,7 @@
                 }
             });
             
-            if (renderer1) renderer1.setSize(width, height);
-            if (renderer2) renderer2.setSize(width, height);
+            if (renderer) renderer.setSize(width, height);
         });
         
         // Initialize the game
