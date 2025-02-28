@@ -193,6 +193,8 @@
         let gameStarted = false;
         let gameComplete = false;
         let serverUrl = '';
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 3;
         
         // Player controls
         const playerControls = {
@@ -202,7 +204,7 @@
             right: false
         };
 
-        // Initialize WebSocket connection with debugging
+        // Initialize WebSocket connection with debugging and reconnection
         function initWebSocket() {
             const statusDiv = document.getElementById('connectionStatus');
             const connectButton = document.getElementById('connectButton');
@@ -231,6 +233,7 @@
                     statusDiv.style.color = 'green';
                     document.getElementById('serverSelection').style.display = 'none';
                     waitingList.style.display = 'block';
+                    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
                 };
 
                 ws.onmessage = (event) => {
@@ -282,18 +285,24 @@
 
                 ws.onclose = (event) => {
                     console.log('WebSocket connection closed:', event);
-                    statusDiv.textContent = 'Connection closed. Please refresh the page.';
-                    statusDiv.style.color = 'red';
-                    connectButton.disabled = false;
-                    waitingList.style.display = 'none';
+                    
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        statusDiv.textContent = `Connection closed. Attempting to reconnect (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...`;
+                        statusDiv.style.color = 'yellow';
+                        reconnectAttempts++;
+                        setTimeout(initWebSocket, 2000); // Try to reconnect after 2 seconds
+                    } else {
+                        statusDiv.textContent = 'Connection failed after multiple attempts. Please refresh the page.';
+                        statusDiv.style.color = 'red';
+                        connectButton.disabled = false;
+                        waitingList.style.display = 'none';
+                    }
                 };
 
                 ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
-                    statusDiv.textContent = 'Connection failed. Please check the server URL and try again.';
+                    statusDiv.textContent = 'Connection error. Attempting to reconnect...';
                     statusDiv.style.color = 'red';
-                    connectButton.disabled = false;
-                    waitingList.style.display = 'none';
                 };
             } catch (error) {
                 console.error('Error creating WebSocket:', error);
@@ -301,6 +310,18 @@
                 statusDiv.style.color = 'red';
                 connectButton.disabled = false;
                 waitingList.style.display = 'none';
+            }
+        }
+
+        // Function to send position updates to server
+        function sendPositionUpdate() {
+            if (ws && ws.readyState === WebSocket.OPEN && character) {
+                ws.send(JSON.stringify({
+                    type: 'position',
+                    playerId: playerId,
+                    position: character.position,
+                    rotation: character.rotation
+                }));
             }
         }
 
