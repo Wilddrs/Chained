@@ -114,6 +114,35 @@
             width: 100% !important;
             height: 100% !important;
         }
+        #waitingList {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        .player-waiting {
+            color: #4CAF50;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .waiting-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #4CAF50;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {transform: rotate(360deg);}
+        }
     </style>
 </head>
 <body>
@@ -124,6 +153,12 @@
             <input type="text" id="serverUrl" value="wss://chained-game.onrender.com" placeholder="Enter server URL (wss://...)">
             <button id="connectButton">Connect to Server</button>
             <div id="connectionStatus"></div>
+        </div>
+        <div id="waitingList" style="display: none;">
+            <h2>Waiting Room</h2>
+            <div id="playersList"></div>
+            <div class="waiting-spinner"></div>
+            <p>Waiting for more players to join...</p>
         </div>
         <div id="startScreen" style="display: none;">
             <h1>Ready to Play</h1>
@@ -171,6 +206,8 @@
         function initWebSocket() {
             const statusDiv = document.getElementById('connectionStatus');
             const connectButton = document.getElementById('connectButton');
+            const waitingList = document.getElementById('waitingList');
+            const playersList = document.getElementById('playersList');
             serverUrl = document.getElementById('serverUrl').value.trim();
             
             if (!serverUrl) {
@@ -193,7 +230,7 @@
                     statusDiv.textContent = 'Connected!';
                     statusDiv.style.color = 'green';
                     document.getElementById('serverSelection').style.display = 'none';
-                    document.getElementById('startScreen').style.display = 'block';
+                    waitingList.style.display = 'block';
                 };
 
                 ws.onmessage = (event) => {
@@ -202,8 +239,17 @@
                         const data = JSON.parse(event.data);
                         
                         switch(data.type) {
+                            case 'playerJoined':
+                                // Update waiting list
+                                const playerElement = document.createElement('div');
+                                playerElement.className = 'player-waiting';
+                                playerElement.textContent = `Player ${data.playerId} joined`;
+                                playersList.appendChild(playerElement);
+                                break;
+                                
                             case 'wait':
                                 document.getElementById('waitingMessage').style.display = 'block';
+                                waitingList.style.display = 'block';
                                 break;
                             
                             case 'start':
@@ -211,6 +257,7 @@
                                 playerId = data.playerId;
                                 opponentId = data.opponent;
                                 isHost = data.isHost;
+                                waitingList.style.display = 'none';
                                 startGame();
                                 break;
                             
@@ -238,6 +285,7 @@
                     statusDiv.textContent = 'Connection closed. Please refresh the page.';
                     statusDiv.style.color = 'red';
                     connectButton.disabled = false;
+                    waitingList.style.display = 'none';
                 };
 
                 ws.onerror = (error) => {
@@ -245,12 +293,14 @@
                     statusDiv.textContent = 'Connection failed. Please check the server URL and try again.';
                     statusDiv.style.color = 'red';
                     connectButton.disabled = false;
+                    waitingList.style.display = 'none';
                 };
             } catch (error) {
                 console.error('Error creating WebSocket:', error);
                 statusDiv.textContent = 'Invalid server URL format.';
                 statusDiv.style.color = 'red';
                 connectButton.disabled = false;
+                waitingList.style.display = 'none';
             }
         }
 
