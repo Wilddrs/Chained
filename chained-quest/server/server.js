@@ -6,8 +6,20 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enable CORS for all routes
-app.use(cors());
+// Enable CORS for all routes with specific origin
+app.use(cors({
+    origin: ['https://wilddrs.github.io', 'http://localhost:3000'],
+    methods: ['GET', 'POST'],
+    credentials: true
+}));
+
+// Add security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
 
 // Serve static files from the client directory
 app.use(express.static(path.join(__dirname, '../client')));
@@ -21,7 +33,21 @@ const server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ 
+    server,
+    // Add WebSocket specific configurations
+    clientTracking: true,
+    perMessageDeflate: {
+        zlibDeflateOptions: {
+            chunkSize: 1024,
+            memLevel: 7,
+            level: 3
+        },
+        zlibInflateOptions: {
+            chunkSize: 10 * 1024
+        }
+    }
+});
 
 // Store connected players
 const players = new Map();
