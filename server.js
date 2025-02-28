@@ -22,11 +22,16 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from the client directory
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, 'client')));
 
 // Add a health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
+});
+
+// Add root endpoint
+app.get('/', (req, res) => {
+    res.send('Chained Game Server is running!');
 });
 
 const server = app.listen(port, () => {
