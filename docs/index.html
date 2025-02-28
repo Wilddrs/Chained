@@ -3,56 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chained Quests</title>
+    <title>Humanoid Chained Quests - Multiplayer</title>
     <style>
         body { 
             margin: 0;
             overflow: hidden;
             font-family: Arial, sans-serif;
-            background-color: #000;
+            background-color: black;
+            color: white;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
         }
         #info {
             position: absolute;
             top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
+            left: 10px;
             z-index: 100;
-            padding: 5px;
-            background-color: rgba(0,0,0,0.5);
-            pointer-events: none;
+            color: white;
         }
         #gameUI {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            background-color: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 5px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
             z-index: 100;
-            pointer-events: none;
         }
         #startScreen {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 1000;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
         }
-        .viewport {
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px;
+            z-index: 100;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #waitingMessage {
+            font-size: 24px;
+            color: white;
+            margin-top: 20px;
+        }
+        #serverSelection {
             position: absolute;
-            top: 0;
-            height: 100%;
-            width: 50%;
-            overflow: hidden;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #serverUrl {
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+            font-size: 16px;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            z-index: 100;
         }
         #viewport1 {
             left: 0;
@@ -74,23 +110,6 @@
             z-index: 100;
             pointer-events: none;
         }
-        button {
-            background-color: #4CAF50;
-            border: none;
-            color: white;
-            padding: 15px 32px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            z-index: 1001;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
         canvas {
             width: 100% !important;
             height: 100% !important;
@@ -98,25 +117,31 @@
     </style>
 </head>
 <body>
+    <div id="gameContainer">
+        <div id="info"></div>
+        <div id="serverSelection">
+            <h1>Humanoid Chained Quests</h1>
+            <input type="text" id="serverUrl" value="wss://chained-game.onrender.com" placeholder="Enter server URL (wss://...)">
+            <button id="connectButton">Connect to Server</button>
+            <div id="connectionStatus"></div>
+        </div>
+        <div id="startScreen" style="display: none;">
+            <h1>Ready to Play</h1>
+            <button id="startButton">Start Game</button>
+            <div id="waitingMessage" style="display: none;">Waiting for another player...</div>
+        </div>
+        <div id="controls">
+            Controls:<br>
+            W - Move Forward | S - Move Backward<br>
+            A - Turn Left | D - Turn Right
+        </div>
+    </div>
+
     <div id="viewport1" class="viewport">
         <div class="playerLabel">Player 1</div>
     </div>
     <div id="viewport2" class="viewport">
         <div class="playerLabel">Player 2</div>
-    </div>
-    <div id="info">Chained Quests - Use WASD to move & Mouse to control camera (P1) | Arrow keys to move & Mouse to control camera (P2)</div>
-    <div id="gameUI">
-        <div>Player 1 Keys: <span id="p1Keys">0</span>/3</div>
-        <div>Player 2 Keys: <span id="p2Keys">0</span>/3</div>
-    </div>
-    <div id="startScreen">
-        <h1>Chained Quests</h1>
-        <p>A cooperative puzzle game where players are chained together</p>
-        <button id="startButton">Start Game</button>
-        <p>Player 1: WASD to move, Mouse to control camera</p>
-        <p>Player 2: Arrow Keys to move, Mouse to control camera</p>
-        <p>Mouse controls: Left click and drag to rotate, scroll to zoom</p>
-        <p>Collect all keys and reach the exit portal together</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
