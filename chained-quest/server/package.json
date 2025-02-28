@@ -1,5 +1,5 @@
 {
-  "name": "chained-quest-server",
+  "name": "chained-game-server",
   "version": "1.0.0",
   "description": "WebSocket server for Chained Quest multiplayer game",
   "main": "server.js",
