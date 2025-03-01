@@ -1,982 +1,2714 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Humanoid Chained Quests - Multiplayer</title>
-    <style>
-        body { 
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            background-color: black;
-            color: white;
-        }
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-        #gameCanvas {
-            width: 100%;
-            height: 100%;
-        }
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 100;
-            color: white;
-        }
-        #gameUI {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 100;
-        }
-        #startScreen {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 100;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 18px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            margin: 10px;
-            z-index: 100;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #waitingMessage {
-            font-size: 24px;
-            color: white;
-            margin-top: 20px;
-        }
-        #serverSelection {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 100;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-        }
-        #serverUrl {
-            padding: 10px;
-            margin: 10px;
-            width: 300px;
-            font-size: 16px;
-        }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            color: white;
-            font-size: 16px;
-            z-index: 100;
-        }
-        #viewport1 {
-            left: 0;
-            border-right: 2px solid rgba(255,255,255,0.3);
-        }
-        #viewport2 {
-            right: 0;
-            border-left: 2px solid rgba(255,255,255,0.3);
-        }
-        .playerLabel {
-            position: absolute;
-            top: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            background-color: rgba(0,0,0,0.5);
-            padding: 5px 10px;
-            border-radius: 5px;
-            z-index: 100;
-            pointer-events: none;
-        }
-        canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-        #waitingList {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 100;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-        }
-        .player-waiting {
-            color: #4CAF50;
-            margin: 10px 0;
-            font-size: 18px;
-        }
-        .waiting-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #4CAF50;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to {transform: rotate(360deg);}
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Ranch Simulator</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: Arial, sans-serif;
+    }
+    #gameCanvas { 
+      width: 100%; 
+      height: 100%;
+      position: absolute;
+      filter: blur(0);
+      transition: filter 0.5s ease;
+    }
+    #gameCanvas.blurred {
+      filter: blur(5px);
+    }
+    #startGameUI {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    #startGameUI h1 {
+      color: #fff;
+      font-size: 4em;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #4CAF50;
+      }
+      to {
+        text-shadow: 0 0 20px #fff, 0 0 30px #4CAF50, 0 0 40px #4CAF50;
+      }
+    }
+    #startGameUI .play-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.5em;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 20px 0;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      box-shadow: 0 4px 15px rgba(76, 175, 80, 0.5);
+    }
+    #startGameUI .play-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.7);
+    }
+    .game-info {
+      color: #fff;
+      text-align: center;
+      max-width: 600px;
+      margin: 20px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      font-size: 1.1em;
+      line-height: 1.6;
+    }
+    .controls-list {
+      text-align: left;
+      display: inline-block;
+      margin: 10px auto;
+    }
+    .controls-list li {
+      margin: 8px 0;
+    }
+    .key {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin: 0 4px;
+    }
+    #ui {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: white;
+      background-color: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 100;
+    }
+    #buildMenu {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      z-index: 100;
+    }
+    #instructions {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      max-width: 300px;
+      z-index: 100;
+    }
+    .btn {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .buildOption {
+      margin: 8px 0;
+    }
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 24px;
+      pointer-events: none;
+      z-index: 1000;
+      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.5);
+    }
+    #inventory-ui {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      display: none;
+      z-index: 1000;
+      min-width: 300px;
+    }
+    #inventory-ui h2 {
+      margin-top: 0;
+      text-align: center;
+      border-bottom: 1px solid #555;
+      padding-bottom: 10px;
+    }
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .inventory-slot {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 2px solid #555;
+      border-radius: 5px;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      cursor: pointer;
+    }
+    .inventory-slot:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    .inventory-slot img {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 5px;
+    }
+    .inventory-slot .item-count {
+      font-size: 12px;
+      color: #aaa;
+    }
+    #vehicleShop {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      z-index: 100;
+    }
+    .vehicle-option {
+      margin: 8px 0;
+    }
+    .vehicle-preview {
+      width: 150px;
+      height: 100px;
+      background-color: rgba(255,255,255,0.1);
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="info"></div>
-        <div id="serverSelection">
-            <h1>Humanoid Chained Quests</h1>
-            <input type="text" id="serverUrl" value="wss://chained-game.onrender.com" placeholder="Enter server URL (wss://...)">
-            <button id="connectButton">Connect to Server</button>
-            <div id="connectionStatus"></div>
-        </div>
-        <div id="waitingList" style="display: none;">
-            <h2>Waiting Room</h2>
-            <div id="playersList"></div>
-            <div class="waiting-spinner"></div>
-            <p>Waiting for more players to join...</p>
-        </div>
-        <div id="startScreen" style="display: none;">
-            <h1>Ready to Play</h1>
-            <button id="startButton">Start Game</button>
-            <div id="waitingMessage" style="display: none;">Waiting for another player...</div>
-        </div>
-        <div id="controls">
-            Controls:<br>
-            W - Move Forward | S - Move Backward<br>
-            A - Turn Left | D - Turn Right
-        </div>
+  <div id="startGameUI">
+    <h1>Ranch Simulator</h1>
+    <div class="game-info">
+      <p>Welcome to your grandfather's old ranch! Build your farming empire, raise animals, and create a thriving business.</p>
+      <div class="controls-list">
+        <h3>Controls:</h3>
+        <ul>
+          <li><span class="key">WASD</span> Move around</li>
+          <li><span class="key">SHIFT</span> Sprint</li>
+          <li><span class="key">SPACE</span> Jump</li>
+          <li><span class="key">C</span> Crouch</li>
+          <li><span class="key">E</span> Interact</li>
+          <li><span class="key">B</span> Build Menu</li>
+          <li><span class="key">ESC</span> Cancel/Menu</li>
+          <li><span class="key">V</span> Vehicle Shop</li>
+          <li><span class="key">F</span> Enter/Exit Vehicle</li>
+          <li><span class="key">R</span> Reset Vehicle</li>
+        </ul>
+      </div>
     </div>
-
-    <div id="viewport1" class="viewport">
-        <div class="playerLabel">Player 1</div>
+    <button class="play-btn" onclick="startGame()">Start Game</button>
+  </div>
+  <div id="crosshair">+</div>
+  <div id="gameCanvas"></div>
+  
+  <div id="instructions">
+    <h3>Ranch Simulator</h3>
+    <p>Controls:</p>
+    <ul>
+      <li>WASD to move</li>
+      <li>Mouse to look around</li>
+      <li>E to interact</li>
+      <li>B to open build menu</li>
+      <li>ESC to cancel building</li>
+    </ul>
+    <button class="btn" onclick="document.getElementById('instructions').style.display='none'">
+      Got it!
+    </button>
+  </div>
+  
+  <div id="ui">
+    <div>Money: $<span id="money">1000</span></div>
+    <div>Animals: <span id="animalCount">0</span></div>
+    <div>Buildings: <span id="buildingCount">1</span></div>
+    <div>Logs: <span id="inventory">0</span></div>
+    <div id="actionText"></div>
+  </div>
+  
+  <div id="buildMenu">
+    <h3>Build Menu</h3>
+    <div class="buildOption">
+      <button class="btn" onclick="startBuilding('barn')">Barn ($200)</button>
     </div>
-    <div id="viewport2" class="viewport">
-        <div class="playerLabel">Player 2</div>
+    <div class="buildOption">
+      <button class="btn" onclick="startBuilding('coop')">Chicken Coop ($100)</button>
     </div>
+    <div class="buildOption">
+      <button class="btn" onclick="startBuilding('fence')">Fence ($50)</button>
+    </div>
+    <div class="buildOption">
+      <button class="btn" onclick="buyAnimal('cow')">Buy Cow ($150)</button>
+    </div>
+    <div class="buildOption">
+      <button class="btn" onclick="buyAnimal('chicken')">Buy Chicken ($25)</button>
+    </div>
+  </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+  <div id="inventory-ui">
+    <h2>Inventory</h2>
+    <div class="inventory-grid">
+      <!-- Slots will be generated dynamically -->
+    </div>
+  </div>
 
-    <script>
-        let camera, scene, renderer;
-        let character;
-        let remoteCharacter;
-        let ws;
-        let playerId;
-        let opponentId;
-        let isHost = false;
-        let gameStarted = false;
-        let gameComplete = false;
-        let serverUrl = '';
-        let reconnectAttempts = 0;
-        const MAX_RECONNECT_ATTEMPTS = 3;
+  <div id="vehicleShop">
+    <h3>Vehicle Shop</h3>
+    <div class="vehicle-option">
+      <div class="vehicle-preview">🚗</div>
+      <button class="btn" onclick="buyVehicle('car')">Car ($2000)</button>
+    </div>
+    <div class="vehicle-option">
+      <div class="vehicle-preview">🚜</div>
+      <button class="btn" onclick="buyVehicle('tractor')">Tractor ($3000)</button>
+    </div>
+    <div class="vehicle-option">
+      <div class="vehicle-preview">🛻</div>
+      <button class="btn" onclick="buyVehicle('truck')">Pickup Truck ($4000)</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Game State
+    const gameState = {
+      money: 100000,
+      animals: [],
+      buildings: [],
+      buildMode: false,
+      currentBuildItem: null,
+      lastIncome: 0,
+      dayNightCycle: 0,
+      inventory: {
+        logs: 0,
+        milk: 0,
+        eggs: 0,
+        wood: 0,
+        tools: 0
+      },
+      inventoryOpen: false,
+      choppingTree: null,
+      chopProgress: 0,
+      fallingTrees: [],
+      vehicles: [], // Add vehicles array
+      currentVehicle: null, // Track current vehicle
+      inVehicle: false, // Track if player is in vehicle
+      vehicleCameraRotation: { x: 0, y: 0 }, // Add camera rotation tracking
+      vehicleCameraMode: 'free', // Add camera mode tracking
+    };
+
+    // Collision system
+    const colliders = [];
+
+    function addCollider(type, position, size) {
+      colliders.push({
+        type,
+        position: position.clone(),
+        size: size.clone()
+      });
+    }
+
+    function checkCollision(position) {
+      for (const collider of colliders) {
+        const distance = position.distanceTo(collider.position);
         
-        // Player controls
-        const playerControls = {
-            forward: false,
-            backward: false,
-            left: false,
-            right: false
-        };
-
-        // Initialize WebSocket connection with debugging and reconnection
-        function initWebSocket() {
-            const statusDiv = document.getElementById('connectionStatus');
-            const connectButton = document.getElementById('connectButton');
-            const waitingList = document.getElementById('waitingList');
-            const playersList = document.getElementById('playersList');
-            serverUrl = document.getElementById('serverUrl').value.trim();
-            
-            if (!serverUrl) {
-                statusDiv.textContent = 'Please enter a server URL';
-                statusDiv.style.color = 'red';
-                return;
+        // Different collision distances for different types
+        let collisionDistance = 0;
+        switch (collider.type) {
+          case 'tree':
+            collisionDistance = 2; // Tree trunk radius
+            break;
+          case 'house':
+            // Box collision for house
+            if (Math.abs(position.x - collider.position.x) < collider.size.x/2 &&
+                Math.abs(position.z - collider.position.z) < collider.size.z/2) {
+              return true;
             }
-
-            // Disable the connect button while connecting
-            connectButton.disabled = true;
-            statusDiv.textContent = 'Connecting...';
-            statusDiv.style.color = 'yellow';
-            console.log('Attempting to connect to:', serverUrl);
-
-            try {
-                ws = new WebSocket(serverUrl);
-
-                ws.onopen = () => {
-                    console.log('WebSocket connection established');
-                    statusDiv.textContent = 'Connected!';
-                    statusDiv.style.color = 'green';
-                    document.getElementById('serverSelection').style.display = 'none';
-                    waitingList.style.display = 'block';
-                    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-                };
-
-                ws.onmessage = (event) => {
-                    console.log('Received message:', event.data);
-                    try {
-                        const data = JSON.parse(event.data);
-                        
-                        switch(data.type) {
-                            case 'playerJoined':
-                                // Update waiting list
-                                const playerElement = document.createElement('div');
-                                playerElement.className = 'player-waiting';
-                                playerElement.textContent = `Player ${data.playerId} joined`;
-                                playersList.appendChild(playerElement);
-                                break;
-                                
-                            case 'wait':
-                                document.getElementById('waitingMessage').style.display = 'block';
-                                waitingList.style.display = 'block';
-                                break;
-                            
-                            case 'start':
-                                console.log('Game starting:', data);
-                                playerId = data.playerId;
-                                opponentId = data.opponent;
-                                isHost = data.isHost;
-                                waitingList.style.display = 'none';
-                                startGame();
-                                break;
-                            
-                            case 'gameUpdate':
-                                if (remoteCharacter) {
-                                    remoteCharacter.position.copy(data.position);
-                                    remoteCharacter.rotation.copy(data.rotation);
-                                }
-                                break;
-                            
-                            case 'playerDisconnected':
-                                alert('Other player disconnected');
-                                location.reload();
-                                break;
-                        }
-                    } catch (error) {
-                        console.error('Error parsing message:', error);
-                        statusDiv.textContent = 'Error processing server message';
-                        statusDiv.style.color = 'red';
-                    }
-                };
-
-                ws.onclose = (event) => {
-                    console.log('WebSocket connection closed:', event);
-                    
-                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        statusDiv.textContent = `Connection closed. Attempting to reconnect (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...`;
-                        statusDiv.style.color = 'yellow';
-                        reconnectAttempts++;
-                        setTimeout(initWebSocket, 2000); // Try to reconnect after 2 seconds
-                    } else {
-                        statusDiv.textContent = 'Connection failed after multiple attempts. Please refresh the page.';
-                        statusDiv.style.color = 'red';
-                        connectButton.disabled = false;
-                        waitingList.style.display = 'none';
-                    }
-                };
-
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    statusDiv.textContent = 'Connection error. Attempting to reconnect...';
-                    statusDiv.style.color = 'red';
-                };
-            } catch (error) {
-                console.error('Error creating WebSocket:', error);
-                statusDiv.textContent = 'Invalid server URL format.';
-                statusDiv.style.color = 'red';
-                connectButton.disabled = false;
-                waitingList.style.display = 'none';
+            continue;
+          case 'rock':
+            collisionDistance = collider.size.x + 0.5; // Rock radius plus small buffer
+            break;
+          case 'barn':
+            // Box collision for barn
+            if (Math.abs(position.x - collider.position.x) < collider.size.x/2 &&
+                Math.abs(position.z - collider.position.z) < collider.size.z/2) {
+              return true;
             }
-        }
-
-        // Function to send position updates to server
-        function sendPositionUpdate() {
-            if (ws && ws.readyState === WebSocket.OPEN && character) {
-                ws.send(JSON.stringify({
-                    type: 'position',
-                    playerId: playerId,
-                    position: character.position,
-                    rotation: character.rotation
-                }));
+            continue;
+          case 'coop':
+            // Box collision for chicken coop
+            if (Math.abs(position.x - collider.position.x) < collider.size.x/2 &&
+                Math.abs(position.z - collider.position.z) < collider.size.z/2) {
+              return true;
             }
-        }
-
-        // Add event listener for the connect button
-        document.getElementById('connectButton').addEventListener('click', () => {
-            console.log('Connect button clicked');
-            initWebSocket();
-        });
-
-        // Game state
-        // Player states
-        const players = [
-            { 
-                keys: 0, 
-                body: null, 
-                mesh: null, 
-                camera: null, 
-                controls: { 
-                    up: false, 
-                    down: false, 
-                    left: false, 
-                    right: false 
-                },
-                cameraRotation: {
-                    horizontal: 0,
-                    vertical: Math.PI / 6
-                },
-                cameraDistance: 15,
-                mouseControl: false
-            },
-            { 
-                keys: 0, 
-                body: null, 
-                mesh: null, 
-                camera: null, 
-                controls: { 
-                    up: false, 
-                    down: false, 
-                    left: false, 
-                    right: false 
-                },
-                cameraRotation: {
-                    horizontal: 0,
-                    vertical: Math.PI / 6
-                },
-                cameraDistance: 15,
-                mouseControl: false
+            continue;
+          case 'fence':
+            // Box collision for fence
+            if (Math.abs(position.x - collider.position.x) < collider.size.x/2 &&
+                Math.abs(position.z - collider.position.z) < collider.size.z/2) {
+              return true;
             }
-        ];
-        
-        // Chain segments
-        const chainSegments = [];
-        const chainBodies = [];
-        
-        // Key objects
-        const keys = [];
-        const keyBodies = [];
-        
-        // Portal
-        let portal = null;
-        
-        // Three.js setup
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
-        
-        // Mouse state
-        const mouse = {
-            x: 0,
-            y: 0,
-            leftButton: false,
-            rightButton: false
-        };
-
-        // Create renderers for split screen
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.getElementById('viewport1').appendChild(renderer.domElement);
-
-        // Create cameras for each player
-        players[0].camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        players[1].camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(10, 20, 10);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        scene.add(directionalLight);
-        
-        // Cannon.js physics setup
-        const world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
-        world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 10;
-        
-        // Create ground
-        const groundGeometry = new THREE.BoxGeometry(50, 1, 50);
-        const groundMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x999999,
-            roughness: 0.8
-        });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.position.y = -0.5;
-        ground.receiveShadow = true;
-        scene.add(ground);
-        
-        // Ground physics
-        const groundShape = new CANNON.Box(new CANNON.Vec3(25, 0.5, 25));
-        const groundBody = new CANNON.Body({ mass: 0 });
-        groundBody.addShape(groundShape);
-        groundBody.position.set(0, -0.5, 0);
-        world.addBody(groundBody);
-        
-        // Create obstacles
-        function createObstacle(x, y, z, width, height, depth) {
-            // Visual representation
-            const obstacleGeometry = new THREE.BoxGeometry(width, height, depth);
-            const obstacleMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x6688cc,
-                roughness: 0.7
-            });
-            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-            obstacle.position.set(x, y, z);
-            obstacle.castShadow = true;
-            obstacle.receiveShadow = true;
-            scene.add(obstacle);
-            
-            // Physics body
-            const obstacleShape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
-            const obstacleBody = new CANNON.Body({ mass: 0 });
-            obstacleBody.addShape(obstacleShape);
-            obstacleBody.position.set(x, y, z);
-            world.addBody(obstacleBody);
+            continue;
         }
         
-        // Create level with obstacles
-        function createLevel() {
-            // Central platform
-            createObstacle(0, 0, 0, 50, 1, 50);
-            
-            // Walls
-            createObstacle(-25, 5, 0, 1, 10, 50); // Left wall
-            createObstacle(25, 5, 0, 1, 10, 50);  // Right wall
-            createObstacle(0, 5, -25, 50, 10, 1); // Back wall
-            createObstacle(0, 5, 25, 50, 10, 1);  // Front wall
-            
-            // Maze obstacles
-            createObstacle(-15, 2, -10, 10, 4, 2);
-            createObstacle(15, 2, 10, 10, 4, 2);
-            createObstacle(-5, 2, 0, 2, 4, 20);
-            createObstacle(10, 2, -15, 2, 4, 15);
-            
-            // Create floating platforms
-            createObstacle(-15, 2, 15, 8, 1, 8);
-            createObstacle(15, 2, -15, 8, 1, 8);
+        if (distance < collisionDistance) {
+          return true;
         }
-        
-        // Create players
-        function createPlayers() {
-            // Player 1
-            const player1Geometry = new THREE.SphereGeometry(1, 32, 32);
-            const player1Material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            players[0].mesh = new THREE.Mesh(player1Geometry, player1Material);
-            players[0].mesh.castShadow = true;
-            players[0].mesh.receiveShadow = true;
-            players[0].mesh.position.set(-10, 3, 0);
-            scene.add(players[0].mesh);
-            
-            // Player 1 physics
-            const player1Shape = new CANNON.Sphere(1);
-            players[0].body = new CANNON.Body({ mass: 5 });
-            players[0].body.addShape(player1Shape);
-            players[0].body.position.set(-10, 3, 0);
-            players[0].body.linearDamping = 0.5;
-            world.addBody(players[0].body);
-            
-            // Player 2
-            const player2Geometry = new THREE.SphereGeometry(1, 32, 32);
-            const player2Material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-            players[1].mesh = new THREE.Mesh(player2Geometry, player2Material);
-            players[1].mesh.castShadow = true;
-            players[1].mesh.receiveShadow = true;
-            players[1].mesh.position.set(-8, 3, 0);
-            scene.add(players[1].mesh);
-            
-            // Player 2 physics
-            const player2Shape = new CANNON.Sphere(1);
-            players[1].body = new CANNON.Body({ mass: 5 });
-            players[1].body.addShape(player2Shape);
-            players[1].body.position.set(-8, 3, 0);
-            players[1].body.linearDamping = 0.5;
-            world.addBody(players[1].body);
+      }
+      return false;
+    }
 
-            // Initialize cameras
-            players.forEach((player, index) => {
-                player.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-                player.camera.position.set(
-                    player.mesh.position.x,
-                    player.mesh.position.y + 10,
-                    player.mesh.position.z + 15
-                );
-                player.camera.lookAt(player.mesh.position);
-            });
-            
-            // Create chain between players
-            createChain(players[0].body, players[1].body, 5, 5);
-        }
-        
-        // Create chain segments
-        function createChain(bodyA, bodyB, length, segments) {
-            const segmentLength = length / segments;
-            let lastBody = bodyA;
-            
-            for (let i = 0; i < segments; i++) {
-                // Create segment visual
-                const chainGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-                const chainMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xaaaaaa,
-                    metalness: 0.7,
-                    roughness: 0.3
-                });
-                const chainMesh = new THREE.Mesh(chainGeometry, chainMaterial);
-                chainMesh.castShadow = true;
-                scene.add(chainMesh);
-                chainSegments.push(chainMesh);
-                
-                // Create segment physics
-                const chainShape = new CANNON.Sphere(0.3);
-                const chainBody = new CANNON.Body({ mass: 0.1 });
-                chainBody.addShape(chainShape);
-                const startPos = new CANNON.Vec3();
-                const endPos = new CANNON.Vec3();
-                
-                bodyA.position.copy(startPos);
-                bodyB.position.copy(endPos);
-                
-                const interpolatedPos = new CANNON.Vec3();
-                interpolatedPos.x = startPos.x + (endPos.x - startPos.x) * ((i + 1) / (segments + 1));
-                interpolatedPos.y = startPos.y + (endPos.y - startPos.y) * ((i + 1) / (segments + 1));
-                interpolatedPos.z = startPos.z + (endPos.z - startPos.z) * ((i + 1) / (segments + 1));
-                
-                chainBody.position.copy(interpolatedPos);
-                world.addBody(chainBody);
-                chainBodies.push(chainBody);
-                
-                // Create constraint to previous body
-                const constraint1 = new CANNON.DistanceConstraint(lastBody, chainBody, segmentLength);
-                world.addConstraint(constraint1);
-                
-                // Last segment gets connected to bodyB
-                if (i === segments - 1) {
-                    const constraint2 = new CANNON.DistanceConstraint(chainBody, bodyB, segmentLength);
-                    world.addConstraint(constraint2);
-                }
-                
-                lastBody = chainBody;
-            }
-        }
-        
-        // Create keys for collection
-        function createKeys() {
-            const keyPositions = [
-                { x: -20, y: 1.5, z: -20 },
-                { x: 20, y: 1.5, z: -20 },
-                { x: 20, y: 1.5, z: 20 },
-                { x: -20, y: 1.5, z: 20 },
-                { x: 0, y: 1.5, z: -20 },
-                { x: 0, y: 1.5, z: 20 }
-            ];
-            
-            for (let i = 0; i < 6; i++) {
-                // Key visual
-                const keyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 1, 8);
-                keyGeometry.rotateX(Math.PI / 2);
-                const keyMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xffff00,
-                    metalness: 0.7,
-                    roughness: 0.3,
-                    emissive: 0xffff00,
-                    emissiveIntensity: 0.3
-                });
-                const keyMesh = new THREE.Mesh(keyGeometry, keyMaterial);
-                keyMesh.castShadow = true;
-                keyMesh.position.set(keyPositions[i].x, keyPositions[i].y, keyPositions[i].z);
-                scene.add(keyMesh);
-                keys.push(keyMesh);
-                
-                // Create key physics as a trigger
-                const keyShape = new CANNON.Cylinder(0.2, 0.2, 1, 8);
-                const keyBody = new CANNON.Body({ mass: 0 });
-                keyBody.addShape(keyShape);
-                keyBody.position.set(keyPositions[i].x, keyPositions[i].y, keyPositions[i].z);
-                keyBody.collisionResponse = false; // Make it a trigger
-                world.addBody(keyBody);
-                keyBodies.push(keyBody);
-            }
-        }
-        
-        // Create exit portal
-        function createPortal() {
-            const portalGeometry = new THREE.TorusGeometry(2, 0.5, 16, 32);
-            const portalMaterial = new THREE.MeshStandardMaterial({
-                color: 0x00ff00,
-                emissive: 0x00ff00,
-                emissiveIntensity: 0.5,
-                transparent: true,
-                opacity: 0.8
-            });
-            portal = new THREE.Mesh(portalGeometry, portalMaterial);
-            portal.position.set(0, 3, -20);
-            portal.rotation.x = Math.PI / 2;
-            scene.add(portal);
-            
-            // Add subtle animation
-            function animatePortal() {
-                portal.rotation.z += 0.01;
-                requestAnimationFrame(animatePortal);
-            }
-            animatePortal();
-        }
-        
-        // Handle key collection
-        function checkKeyCollection() {
-            for (let i = 0; i < keys.length; i++) {
-                if (!keys[i].visible) continue;
-                
-                for (let p = 0; p < players.length; p++) {
-                    const distance = players[p].mesh.position.distanceTo(keys[i].position);
-                    
-                    if (distance < 1.5) {
-                        // Collect key
-                        keys[i].visible = false;
-                        keyBodies[i].position.y = -100; // Move it away
-                        players[p].keys++;
-                        document.getElementById(`p${p+1}Keys`).textContent = players[p].keys;
-                        
-                        // Play sound effect (if we had one)
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Check for level completion
-        function checkCompletion() {
-            if (gameComplete) return;
-            
-            const totalKeys = players[0].keys + players[1].keys;
-            if (totalKeys < 6) return;
-            
-            // Check if both players are near the portal
-            const p1Distance = players[0].mesh.position.distanceTo(portal.position);
-            const p2Distance = players[1].mesh.position.distanceTo(portal.position);
-            
-            if (p1Distance < 3 && p2Distance < 3) {
-                gameComplete = true;
-                showGameComplete();
-            }
-        }
-        
-        // Show game complete screen
-        function showGameComplete() {
-            const completeScreen = document.createElement('div');
-            completeScreen.style.position = 'absolute';
-            completeScreen.style.top = '0';
-            completeScreen.style.left = '0';
-            completeScreen.style.width = '100%';
-            completeScreen.style.height = '100%';
-            completeScreen.style.backgroundColor = 'rgba(0,0,0,0.8)';
-            completeScreen.style.display = 'flex';
-            completeScreen.style.flexDirection = 'column';
-            completeScreen.style.justifyContent = 'center';
-            completeScreen.style.alignItems = 'center';
-            completeScreen.style.color = 'white';
-            completeScreen.style.zIndex = '200';
-            
-            const title = document.createElement('h1');
-            title.textContent = 'Level Complete!';
-            
-            const message = document.createElement('p');
-            message.textContent = 'You successfully collected all keys and reached the portal together!';
-            
-            const restartButton = document.createElement('button');
-            restartButton.textContent = 'Restart Game';
-            restartButton.onclick = function() {
-                location.reload();
-            };
-            
-            completeScreen.appendChild(title);
-            completeScreen.appendChild(message);
-            completeScreen.appendChild(restartButton);
-            
-            document.body.appendChild(completeScreen);
-        }
-        
-        // Setup key controls
-        function setupControls() {
-            document.addEventListener('keydown', function(event) {
-                switch(event.key) {
-                    // Player 1 controls
-                    case 'w': players[0].controls.up = true; break;
-                    case 's': players[0].controls.down = true; break;
-                    case 'a': players[0].controls.left = true; break;
-                    case 'd': players[0].controls.right = true; break;
-                    
-                    // Player 2 controls
-                    case 'ArrowUp': players[1].controls.up = true; break;
-                    case 'ArrowDown': players[1].controls.down = true; break;
-                    case 'ArrowLeft': players[1].controls.left = true; break;
-                    case 'ArrowRight': players[1].controls.right = true; break;
-                }
-            });
-            
-            document.addEventListener('keyup', function(event) {
-                switch(event.key) {
-                    // Player 1 controls
-                    case 'w': players[0].controls.up = false; break;
-                    case 's': players[0].controls.down = false; break;
-                    case 'a': players[0].controls.left = false; break;
-                    case 'd': players[0].controls.right = false; break;
-                    
-                    // Player 2 controls
-                    case 'ArrowUp': players[1].controls.up = false; break;
-                    case 'ArrowDown': players[1].controls.down = false; break;
-                    case 'ArrowLeft': players[1].controls.left = false; break;
-                    case 'ArrowRight': players[1].controls.right = false; break;
-                }
-            });
-        }
-        
-        // Setup mouse controls
-        function setupMouseControls() {
-            document.addEventListener('mousemove', function(event) {
-                const prevX = mouse.x;
-                const prevY = mouse.y;
-                mouse.x = event.clientX;
-                mouse.y = event.clientY;
+    function initializeColliders() {
+      // Add house collider
+      const house = gameState.buildings.find(b => b.type === 'house');
+      if (house) {
+        addCollider('house', house.position, new THREE.Vector3(10, 4, 8));
+      }
+    }
 
-                if (mouse.leftButton || mouse.rightButton) {
-                    const movementX = mouse.x - prevX;
-                    const movementY = mouse.y - prevY;
+    // Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('gameCanvas').appendChild(renderer.domElement);
 
-                    // Determine which viewport was clicked
-                    const isLeftHalf = event.clientX < window.innerWidth / 2;
-                    const player = isLeftHalf ? players[0] : players[1];
+    // Add fog to scene
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.0025);
 
-                    if (player.mouseControl) {
-                        // Rotate camera
-                        player.cameraRotation.horizontal -= movementX * 0.005;
-                        player.cameraRotation.vertical = Math.max(
-                            0.1,
-                            Math.min(Math.PI / 2, player.cameraRotation.vertical - movementY * 0.005)
-                        );
-                    }
-                }
-            });
+    // Create clouds
+    const clouds = [];
+    const cloudCount = 30; // Reduced from 50 for better performance
 
-            document.addEventListener('mousedown', function(event) {
-                if (event.button === 0) mouse.leftButton = true;
-                if (event.button === 2) mouse.rightButton = true;
-
-                const isLeftHalf = event.clientX < window.innerWidth / 2;
-                const player = isLeftHalf ? players[0] : players[1];
-                player.mouseControl = true;
-            });
-
-            document.addEventListener('mouseup', function(event) {
-                if (event.button === 0) mouse.leftButton = false;
-                if (event.button === 2) mouse.rightButton = false;
-                players.forEach(player => player.mouseControl = false);
-            });
-
-            document.addEventListener('contextmenu', function(event) {
-                event.preventDefault();
-            });
-
-            document.addEventListener('wheel', function(event) {
-                const isLeftHalf = event.clientX < window.innerWidth / 2;
-                const player = isLeftHalf ? players[0] : players[1];
-
-                player.cameraDistance = Math.max(
-                    5,
-                    Math.min(30, player.cameraDistance + event.deltaY * 0.01)
-                );
-            });
-        }
-
-        // Update camera positions based on player positions and rotations
-        function updateCameras() {
-            players.forEach(player => {
-                if (!player.mesh) return;
-
-                const horizontalDist = Math.cos(player.cameraRotation.vertical) * player.cameraDistance;
-                const verticalDist = Math.sin(player.cameraRotation.vertical) * player.cameraDistance;
-
-                const cameraX = player.mesh.position.x + Math.sin(player.cameraRotation.horizontal) * horizontalDist;
-                const cameraZ = player.mesh.position.z + Math.cos(player.cameraRotation.horizontal) * horizontalDist;
-                const cameraY = player.mesh.position.y + verticalDist;
-
-                player.camera.position.set(cameraX, cameraY, cameraZ);
-                player.camera.lookAt(player.mesh.position);
-            });
-        }
-
-        // Modify applyControls for camera-relative movement
-        function applyControls() {
-            players.forEach((player, index) => {
-                const force = 15; // Reduced from 20 for better control
-                
-                if (player.controls.up || player.controls.down || player.controls.left || player.controls.right) {
-                    // Calculate movement direction based on camera angle
-                    const cameraAngle = player.cameraRotation.horizontal;
-                    const forwardX = Math.sin(cameraAngle);
-                    const forwardZ = Math.cos(cameraAngle);
-                    const rightX = Math.sin(cameraAngle + Math.PI/2);
-                    const rightZ = Math.cos(cameraAngle + Math.PI/2);
-
-                    let moveX = 0;
-                    let moveZ = 0;
-
-                    if (player.controls.up) {
-                        moveX -= forwardX;
-                        moveZ -= forwardZ;
-                    }
-                    if (player.controls.down) {
-                        moveX += forwardX;
-                        moveZ += forwardZ;
-                    }
-                    if (player.controls.left) {
-                        moveX -= rightX;
-                        moveZ -= rightZ;
-                    }
-                    if (player.controls.right) {
-                        moveX += rightX;
-                        moveZ += rightZ;
-                    }
-
-                    // Normalize movement vector
-                    const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
-                    if (length > 0) {
-                        moveX /= length;
-                        moveZ /= length;
-                    }
-
-                    player.body.applyImpulse(
-                        new CANNON.Vec3(moveX * force, 0, moveZ * force),
-                        player.body.position
-                    );
-                }
-
-                // Add more dampening for better control
-                player.body.velocity.scale(0.97);
-                player.body.angularVelocity.scale(0.97);
-            });
-        }
-        
-        // Update physics and visuals
-        function updatePhysics() {
-            // Update player meshes
-            players.forEach(player => {
-                if (player.body && player.mesh) {
-                    player.mesh.position.copy(player.body.position);
-                    player.mesh.quaternion.copy(player.body.quaternion);
-                }
-            });
-            
-            // Update chain segments
-            for (let i = 0; i < chainSegments.length; i++) {
-                chainSegments[i].position.copy(chainBodies[i].position);
-                chainSegments[i].quaternion.copy(chainBodies[i].quaternion);
-            }
-        }
-        
-        // Start the game
-        function startGame() {
-            document.getElementById('startScreen').style.display = 'none';
-            gameStarted = true;
-        }
-        
-        // Initialize the game
-        function init() {
-            // Create viewports if they don't exist
-            if (!document.getElementById('viewport1')) {
-                const viewport1 = document.createElement('div');
-                viewport1.id = 'viewport1';
-                viewport1.className = 'viewport';
-                const label1 = document.createElement('div');
-                label1.className = 'playerLabel';
-                label1.textContent = 'Player 1';
-                viewport1.appendChild(label1);
-                document.body.appendChild(viewport1);
-            }
-            
-            if (!document.getElementById('viewport2')) {
-                const viewport2 = document.createElement('div');
-                viewport2.id = 'viewport2';
-                viewport2.className = 'viewport';
-                const label2 = document.createElement('div');
-                label2.className = 'playerLabel';
-                label2.textContent = 'Player 2';
-                viewport2.appendChild(label2);
-                document.body.appendChild(viewport2);
-            }
-
-            createLevel();
-            createPlayers();
-            createKeys();
-            createPortal();
-            setupControls();
-            setupMouseControls();
-            
-            document.getElementById('startButton').addEventListener('click', startGame);
-            
-            animate();
-        }
-        
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            if (gameStarted && !gameComplete) {
-                applyControls();
-                world.step(1/60);
-                updatePhysics();
-                updateCameras();
-                checkKeyCollection();
-                checkCompletion();
-            }
-            
-            // Render both viewports
-            renderer.render(scene, players[0].camera);
-        }
-        
-        // Handle window resize for split screen
-        window.addEventListener('resize', function() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            
-            players.forEach(player => {
-                if (player.camera) {
-                    player.camera.aspect = width / height;
-                    player.camera.updateProjectionMatrix();
-                }
-            });
-            
-            if (renderer) renderer.setSize(width, height);
+    function createCloud() {
+      const cloudGroup = new THREE.Group();
+      
+      // Create multiple spheres for each cloud with better formation
+      const particleCount = Math.floor(Math.random() * 5) + 5; // Reduced from 8+8 to 5+5 particles
+      const cloudWidth = Math.random() * 15 + 10; // Base cloud width
+      const cloudHeight = Math.random() * 4 + 3; // Base cloud height
+      
+      for (let i = 0; i < particleCount; i++) {
+        const size = Math.random() * 6 + 4; // Increased base size for better visibility
+        const geometry = new THREE.SphereGeometry(size, 6, 6); // Reduced segments for performance
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.8,
+          roughness: 1,
+          metalness: 0
         });
         
-        // Initialize the game
-        init();
-    </script>
+        const particle = new THREE.Mesh(geometry, material);
+        
+        // Position particles in a more natural cloud formation
+        const angle = (i / particleCount) * Math.PI * 2;
+        const radius = cloudWidth * (0.3 + Math.random() * 0.7); // Vary the radius
+        particle.position.set(
+          Math.cos(angle) * radius * 0.5,
+          (Math.random() - 0.5) * cloudHeight,
+          Math.sin(angle) * radius * 0.5
+        );
+        
+        // Add slight random rotation for variety
+        particle.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
+        
+        cloudGroup.add(particle);
+      }
+      
+      // Position cloud in sky with more height variation
+      const x = (Math.random() - 0.5) * 800;
+      const y = Math.random() * 30 + 60; // More varied height
+      const z = (Math.random() - 0.5) * 800;
+      cloudGroup.position.set(x, y, z);
+      
+      // Add slight overall tilt to the cloud
+      cloudGroup.rotation.set(
+        Math.random() * 0.2 - 0.1,
+        Math.random() * Math.PI * 2,
+        Math.random() * 0.2 - 0.1
+      );
+      
+      scene.add(cloudGroup);
+      
+      return {
+        object: cloudGroup,
+        speed: Math.random() * 2 + 1, // Reduced speed variation for smoother movement
+        initialX: x,
+        baseY: y, // Store base Y position for floating effect
+        floatOffset: Math.random() * Math.PI * 2, // Random start position for floating
+        scale: Math.random() * 0.5 + 0.75 // Random scale for size variation
+      };
+    }
+
+    // Create initial clouds
+    for (let i = 0; i < cloudCount; i++) {
+      clouds.push(createCloud());
+    }
+
+    function updateClouds(delta) {
+      const windDirection = 1;
+      const time = Date.now() * 0.001; // Current time in seconds
+      
+      clouds.forEach(cloud => {
+        // Move clouds along X axis
+        cloud.object.position.x += cloud.speed * windDirection * delta;
+        
+        // Add gentle floating motion
+        cloud.object.position.y = cloud.baseY + Math.sin(time + cloud.floatOffset) * 2;
+        
+        // Reset cloud position when it moves too far
+        if (windDirection > 0) {
+          if (cloud.object.position.x > 400) {
+            cloud.object.position.x = -400;
+            cloud.object.position.z = (Math.random() - 0.5) * 800;
+            // Randomize height when wrapping
+            cloud.baseY = Math.random() * 30 + 60;
+          }
+        } else {
+          if (cloud.object.position.x < -400) {
+            cloud.object.position.x = 400;
+            cloud.object.position.z = (Math.random() - 0.5) * 800;
+            // Randomize height when wrapping
+            cloud.baseY = Math.random() * 30 + 60;
+          }
+        }
+        
+        // Add gentle rotation
+        cloud.object.rotation.y += delta * 0.05;
+      });
+    }
+
+    // Update fog color based on time of day and weather
+    function updateFog(skyColor) {
+      if (scene.fog) {
+        scene.fog.color.copy(skyColor);
+        
+        // Adjust fog density based on weather
+        if (isRaining) {
+          scene.fog.density = 0.005; // Denser fog when raining
+        } else {
+          scene.fog.density = 0.0025; // Normal fog density
+        }
+      }
+    }
+
+    // Celestial objects
+    const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xffff00,
+      emissive: 0xffff00,
+      emissiveIntensity: 1
+    });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sun.castShadow = false;
+    scene.add(sun);
+
+    const moonGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const moonMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xffffff,
+      emissive: 0xaaaaaa,
+      emissiveIntensity: 0.5
+    });
+    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+    moon.castShadow = false;
+    scene.add(moon);
+
+    // Create stars
+    const starsGroup = new THREE.Group();
+    const starGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+    const starMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 1,
+      transparent: true,
+      opacity: 0
+    });
+
+    for (let i = 0; i < 1000; i++) {
+      const star = new THREE.Mesh(starGeometry, starMaterial);
+      
+      // Position stars in a dome shape
+      const phi = Math.random() * Math.PI * 2;
+      const theta = Math.random() * Math.PI * 0.5;
+      const radius = 300;
+      
+      star.position.x = radius * Math.sin(theta) * Math.cos(phi);
+      star.position.y = radius * Math.cos(theta);
+      star.position.z = radius * Math.sin(theta) * Math.sin(phi);
+      
+      starsGroup.add(star);
+    }
+    scene.add(starsGroup);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(50, 200, 100);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 500;
+    directionalLight.shadow.camera.left = -100;
+    directionalLight.shadow.camera.right = 100;
+    directionalLight.shadow.camera.top = 100;
+    directionalLight.shadow.camera.bottom = -100;
+    directionalLight.shadow.bias = -0.001;
+    scene.add(directionalLight);
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x4CAF50,
+      roughness: 0.8,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Add some trees and rocks for environment
+    function createTree(x, z) {
+      const treeGroup = new THREE.Group();
+      
+      // Tree trunk
+      const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 5, 8);
+      const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.y = 2.5;
+      trunk.castShadow = true;
+      trunk.receiveShadow = true;
+      treeGroup.add(trunk);
+      
+      // Tree foliage
+      const foliageGeometry = new THREE.ConeGeometry(3, 7, 8);
+      const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+      const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+      foliage.position.y = 8;
+      foliage.castShadow = true;
+      foliage.receiveShadow = true;
+      treeGroup.add(foliage);
+      
+      treeGroup.position.set(x, 0, z);
+      scene.add(treeGroup);
+
+      // Add tree data
+      const treeData = {
+        position: new THREE.Vector3(x, 0, z),
+        object: treeGroup,
+        health: 100,
+        trunk: trunk,
+        foliage: foliage,
+        originalScale: {
+          trunk: trunk.scale.clone(),
+          foliage: foliage.scale.clone()
+        }
+      };
+
+      // Add tree collider
+      addCollider('tree', new THREE.Vector3(x, 0, z), new THREE.Vector3(2, 5, 2));
+      
+      // Store tree in gameState
+      if (!gameState.trees) gameState.trees = [];
+      gameState.trees.push(treeData);
+      
+      return treeData;
+    }
+
+    function createRock(x, z, scale = 1) {
+      const rockGeometry = new THREE.DodecahedronGeometry(scale, 0);
+      const rockMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x888888, 
+        roughness: 0.9
+      });
+      const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+      rock.position.set(x, scale/2, z);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      scene.add(rock);
+
+      // Add rock collider with proper size
+      addCollider('rock', new THREE.Vector3(x, 0, z), new THREE.Vector3(scale, scale, scale));
+    }
+
+    // Add initial buildings (your grandfather's old ranch house)
+    function createRanchHouse() {
+      const houseGroup = new THREE.Group();
+      
+      // Base/foundation
+      const baseGeometry = new THREE.BoxGeometry(10, 0.5, 8);
+      const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.y = 0.25;
+      base.receiveShadow = true;
+      houseGroup.add(base);
+      
+      // Walls
+      const wallGeometry = new THREE.BoxGeometry(9, 4, 7);
+      const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C });
+      const walls = new THREE.Mesh(wallGeometry, wallMaterial);
+      walls.position.y = 2.5;
+      walls.castShadow = true;
+      walls.receiveShadow = true;
+      houseGroup.add(walls);
+      
+      // Roof
+      const roofGeometry = new THREE.ConeGeometry(7, 4, 4);
+      const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x800000 });
+      const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+      roof.position.y = 6;
+      roof.rotation.y = Math.PI / 4;
+      roof.castShadow = true;
+      houseGroup.add(roof);
+      
+      // Door
+      const doorGeometry = new THREE.PlaneGeometry(1.5, 3);
+      const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x4d2600, side: THREE.DoubleSide });
+      const door = new THREE.Mesh(doorGeometry, doorMaterial);
+      door.position.set(0, 2, 3.51);
+      houseGroup.add(door);
+      
+      // Windows
+      const windowGeometry = new THREE.PlaneGeometry(1.5, 1.5);
+      const windowMaterial = new THREE.MeshStandardMaterial({ color: 0xadd8e6, side: THREE.DoubleSide });
+      
+      const window1 = new THREE.Mesh(windowGeometry, windowMaterial);
+      window1.position.set(-3, 2.5, 3.51);
+      houseGroup.add(window1);
+      
+      const window2 = new THREE.Mesh(windowGeometry, windowMaterial);
+      window2.position.set(3, 2.5, 3.51);
+      houseGroup.add(window2);
+      
+      houseGroup.position.set(0, 0, -20);
+      scene.add(houseGroup);
+      
+      gameState.buildings.push({
+        type: 'house',
+        position: new THREE.Vector3(0, 0, -20),
+        object: houseGroup
+      });
+    }
+
+    // Create environment elements
+    for (let i = 0; i < 100; i++) {
+      const x = Math.random() * 400 - 200;
+      const z = Math.random() * 400 - 200;
+      if (Math.abs(x) > 15 || Math.abs(z) > 15) { // Don't place trees too close to spawn
+        createTree(x, z);
+      }
+    }
+
+    for (let i = 0; i < 60; i++) {
+      const x = Math.random() * 300 - 150;
+      const z = Math.random() * 300 - 150;
+      const scale = Math.random() * 2 + 0.5;
+      createRock(x, z, scale);
+    }
+
+    createRanchHouse();
+
+    // Player controls
+    const playerHeight = 1.8;
+    camera.position.set(0, playerHeight, 0);
+    
+    const keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+      e: false,
+      b: false,
+      escape: false,
+      space: false,
+      shift: false,
+      c: false,  // Add C key for crouch
+      v: false,  // Add V key for vehicle shop
+      f: false,  // Add F key for enter/exit vehicle
+      r: false   // Add R key for reset vehicle
+    };
+
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const playerPosition = new THREE.Vector3(0, playerHeight, 0);
+    let canJump = true;
+    let isJumping = false;
+    let isCrouching = false;
+    let verticalVelocity = 0;
+    const GRAVITY = -20;
+    const JUMP_FORCE = 10;
+    const SPRINT_MULTIPLIER = 1.7;
+    const CROUCH_MULTIPLIER = 0.5;
+    const BASE_MOVE_SPEED = 0.15;
+    const STANDING_HEIGHT = 1.8;
+    const CROUCH_HEIGHT = 1.0;
+    let bobOffset = 0;
+    let lastBobUpdate = 0;
+    let sprintBobMultiplier = 1;
+
+    // Movement controls
+    document.addEventListener('keydown', (event) => {
+      switch (event.key.toLowerCase()) {
+        case 'w': keys.w = true; break;
+        case 'a': keys.a = true; break;
+        case 's': keys.s = true; break;
+        case 'd': keys.d = true; break;
+        case 'e': 
+          keys.e = true; 
+          if (!gameState.buildMode) {
+            toggleInventory();
+          }
+          break;
+        case 'b':
+          toggleBuildMenu();
+          break;
+        case 'escape':
+          if (gameState.buildMode) {
+            cancelBuilding();
+          }
+          if (gameState.inventoryOpen) {
+            toggleInventory();
+          }
+          break;
+        case ' ':
+          keys.space = true;
+          if (canJump && !isJumping) {
+            verticalVelocity = JUMP_FORCE;
+            isJumping = true;
+            canJump = false;
+            createJumpEffect(playerPosition.x, playerPosition.y - 1, playerPosition.z, false);
+          }
+          break;
+        case 'shift':
+          keys.shift = true;
+          break;
+        case 'c':
+          if (gameState.inVehicle) {
+            // Toggle between free and follow modes
+            gameState.vehicleCameraMode = gameState.vehicleCameraMode === 'free' ? 'follow' : 'free';
+            // Reset camera rotation when switching to free mode
+            if (gameState.vehicleCameraMode === 'free') {
+              gameState.vehicleCameraRotation.x = 0;
+              gameState.vehicleCameraRotation.y = 0;
+            }
+          } else {
+            // Existing crouch behavior
+            keys.c = true;
+            if (!isJumping) {
+              isCrouching = true;
+            }
+          }
+          break;
+        case 'v':
+          keys.v = true;
+          break;
+        case 'f':
+          keys.f = true;
+          break;
+        case 'r':
+          keys.r = true;
+          break;
+      }
+    });
+
+    document.addEventListener('keyup', (event) => {
+      switch (event.key.toLowerCase()) {
+        case 'w': keys.w = false; break;
+        case 'a': keys.a = false; break;
+        case 's': keys.s = false; break;
+        case 'd': keys.d = false; break;
+        case 'e': keys.e = false; break;
+        case ' ': keys.space = false; break;
+        case 'shift': keys.shift = false; break;
+        case 'c':
+          keys.c = false;
+          isCrouching = false;
+          break;
+        case 'v':
+          keys.v = false;
+          break;
+        case 'f':
+          keys.f = false;
+          break;
+        case 'r':
+          keys.r = false;
+          break;
+      }
+    });
+
+    let mouseX = 0;
+    let mouseY = 0;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    // Mouse look controls
+    document.addEventListener('mousemove', (event) => {
+      if (document.pointerLockElement === renderer.domElement) {
+        mouseX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+        mouseY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        
+        if (gameState.inVehicle && gameState.vehicleCameraMode === 'free') {
+          // Update vehicle camera rotation
+          gameState.vehicleCameraRotation.y -= mouseX * 0.002;
+          gameState.vehicleCameraRotation.x -= mouseY * 0.002;
+          // Limit vertical rotation
+          gameState.vehicleCameraRotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, gameState.vehicleCameraRotation.x));
+        } else if (!gameState.inVehicle) {
+          // Normal player camera rotation
+          euler.setFromQuaternion(camera.quaternion);
+          euler.y -= mouseX * 0.002;
+          euler.x -= mouseY * 0.002;
+          euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
+          camera.quaternion.setFromEuler(euler);
+        }
+      }
+    });
+
+    renderer.domElement.addEventListener('click', () => {
+      if (document.pointerLockElement !== renderer.domElement) {
+        renderer.domElement.requestPointerLock();
+      }
+    });
+
+    // Functions for building system
+    function toggleBuildMenu() {
+      const buildMenu = document.getElementById('buildMenu');
+      if (buildMenu.style.display === 'block') {
+        buildMenu.style.display = 'none';
+        document.exitPointerLock();
+      } else {
+        buildMenu.style.display = 'block';
+      }
+    }
+
+    // Preview objects for building
+    const previewMaterials = {
+      barn: new THREE.MeshStandardMaterial({ 
+        color: 0xff0000, 
+        transparent: true, 
+        opacity: 0.7 
+      }),
+      coop: new THREE.MeshStandardMaterial({ 
+        color: 0xff9900, 
+        transparent: true, 
+        opacity: 0.7 
+      }),
+      fence: new THREE.MeshStandardMaterial({ 
+        color: 0x8B4513, 
+        transparent: true, 
+        opacity: 0.7 
+      })
+    };
+
+    let buildPreview = null;
+
+    function createBuildPreview(type) {
+      if (buildPreview) {
+        scene.remove(buildPreview);
+      }
+
+      switch (type) {
+        case 'barn':
+          const barnGroup = new THREE.Group();
+          
+          // Base
+          const baseGeometry = new THREE.BoxGeometry(8, 0.5, 10);
+          const base = new THREE.Mesh(baseGeometry, previewMaterials.barn);
+          base.position.y = 0.25;
+          barnGroup.add(base);
+          
+          // Walls
+          const wallGeometry = new THREE.BoxGeometry(7, 5, 9);
+          const walls = new THREE.Mesh(wallGeometry, previewMaterials.barn);
+          walls.position.y = 3;
+          barnGroup.add(walls);
+          
+          // Roof
+          const roofGeometry = new THREE.ConeGeometry(7, 4, 4);
+          const roof = new THREE.Mesh(roofGeometry, previewMaterials.barn);
+          roof.position.y = 7.5;
+          roof.rotation.y = Math.PI / 4;
+          barnGroup.add(roof);
+          
+          buildPreview = barnGroup;
+          break;
+          
+        case 'coop':
+          const coopGroup = new THREE.Group();
+          
+          // Base
+          const coopBaseGeometry = new THREE.BoxGeometry(4, 0.5, 5);
+          const coopBase = new THREE.Mesh(coopBaseGeometry, previewMaterials.coop);
+          coopBase.position.y = 0.25;
+          coopGroup.add(coopBase);
+          
+          // Walls
+          const coopWallGeometry = new THREE.BoxGeometry(3.5, 2.5, 4.5);
+          const coopWalls = new THREE.Mesh(coopWallGeometry, previewMaterials.coop);
+          coopWalls.position.y = 1.5;
+          coopGroup.add(coopWalls);
+          
+          // Roof
+          const coopRoofGeometry = new THREE.BoxGeometry(4, 1, 5);
+          const coopRoof = new THREE.Mesh(coopRoofGeometry, previewMaterials.coop);
+          coopRoof.position.y = 3;
+          coopGroup.add(coopRoof);
+          
+          buildPreview = coopGroup;
+          break;
+          
+        case 'fence':
+          const fenceGroup = new THREE.Group();
+          
+          const fenceGeometry = new THREE.BoxGeometry(5, 1.5, 0.3);
+          const fence = new THREE.Mesh(fenceGeometry, previewMaterials.fence);
+          fence.position.y = 0.75;
+          fenceGroup.add(fence);
+          
+          // Posts
+          const postGeometry = new THREE.BoxGeometry(0.4, 2, 0.4);
+          const post1 = new THREE.Mesh(postGeometry, previewMaterials.fence);
+          post1.position.set(-2.3, 1, 0);
+          fenceGroup.add(post1);
+          
+          const post2 = new THREE.Mesh(postGeometry, previewMaterials.fence);
+          post2.position.set(2.3, 1, 0);
+          fenceGroup.add(post2);
+          
+          buildPreview = fenceGroup;
+          break;
+      }
+      
+      scene.add(buildPreview);
+      return buildPreview;
+    }
+
+    function startBuilding(type) {
+      const costs = {
+        barn: 200,
+        coop: 100,
+        fence: 50
+      };
+      
+      if (gameState.money < costs[type]) {
+        showActionText("Not enough money to build " + type);
+        return;
+      }
+      
+      document.getElementById('buildMenu').style.display = 'none';
+      gameState.buildMode = true;
+      gameState.currentBuildItem = type;
+      createBuildPreview(type);
+      
+      renderer.domElement.requestPointerLock();
+      showActionText("Click to place " + type + " (ESC to cancel)");
+    }
+
+    function cancelBuilding() {
+      if (buildPreview) {
+        scene.remove(buildPreview);
+        buildPreview = null;
+      }
+      
+      gameState.buildMode = false;
+      gameState.currentBuildItem = null;
+      showActionText("");
+    }
+
+    function placeBuilding() {
+      if (!gameState.buildMode || !buildPreview) return;
+      
+      const type = gameState.currentBuildItem;
+      const costs = {
+        barn: 200,
+        coop: 100,
+        fence: 50
+      };
+      
+      // Check if can afford
+      if (gameState.money < costs[type]) {
+        showActionText("Not enough money to build " + type);
+        return;
+      }
+      
+      // Create permanent building
+      let finalBuilding;
+      const position = buildPreview.position.clone();
+      
+      switch (type) {
+        case 'barn':
+          // Create permanent barn with proper materials
+          const barnGroup = new THREE.Group();
+          
+          // Base
+          const baseGeometry = new THREE.BoxGeometry(8, 0.5, 10);
+          const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+          const base = new THREE.Mesh(baseGeometry, baseMaterial);
+          base.position.y = 0.25;
+          base.castShadow = true;
+          base.receiveShadow = true;
+          barnGroup.add(base);
+          
+          // Walls
+          const wallGeometry = new THREE.BoxGeometry(7, 5, 9);
+          const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xA52A2A });
+          const walls = new THREE.Mesh(wallGeometry, wallMaterial);
+          walls.position.y = 3;
+          walls.castShadow = true;
+          walls.receiveShadow = true;
+          barnGroup.add(walls);
+          
+          // Roof
+          const roofGeometry = new THREE.ConeGeometry(7, 4, 4);
+          const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000 });
+          const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+          roof.position.y = 7.5;
+          roof.rotation.y = Math.PI / 4;
+          roof.castShadow = true;
+          roof.receiveShadow = true;
+          barnGroup.add(roof);
+          
+          barnGroup.position.copy(position);
+          scene.add(barnGroup);
+          finalBuilding = barnGroup;
+          break;
+          
+        case 'coop':
+          // Create permanent chicken coop with proper materials
+          const coopGroup = new THREE.Group();
+          
+          // Base
+          const coopBaseGeometry = new THREE.BoxGeometry(4, 0.5, 5);
+          const coopBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+          const coopBase = new THREE.Mesh(coopBaseGeometry, coopBaseMaterial);
+          coopBase.position.y = 0.25;
+          coopBase.castShadow = true;
+          coopBase.receiveShadow = true;
+          coopGroup.add(coopBase);
+          
+          // Walls
+          const coopWallGeometry = new THREE.BoxGeometry(3.5, 2.5, 4.5);
+          const coopWallMaterial = new THREE.MeshStandardMaterial({ color: 0xDEB887 });
+          const coopWalls = new THREE.Mesh(coopWallGeometry, coopWallMaterial);
+          coopWalls.position.y = 1.5;
+          coopWalls.castShadow = true;
+          coopWalls.receiveShadow = true;
+          coopGroup.add(coopWalls);
+          
+          // Roof
+          const coopRoofGeometry = new THREE.BoxGeometry(4, 1, 5);
+          const coopRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000 });
+          const coopRoof = new THREE.Mesh(coopRoofGeometry, coopRoofMaterial);
+          coopRoof.position.y = 3;
+          coopRoof.castShadow = true;
+          coopRoof.receiveShadow = true;
+          coopGroup.add(coopRoof);
+          
+          coopGroup.position.copy(position);
+          scene.add(coopGroup);
+          finalBuilding = coopGroup;
+          break;
+          
+        case 'fence':
+          // Create permanent fence with proper materials
+          const fenceGroup = new THREE.Group();
+          
+          const fenceGeometry = new THREE.BoxGeometry(5, 1.5, 0.3);
+          const fenceMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+          const fence = new THREE.Mesh(fenceGeometry, fenceMaterial);
+          fence.position.y = 0.75;
+          fence.castShadow = true;
+          fence.receiveShadow = true;
+          fenceGroup.add(fence);
+          
+          // Posts
+          const postGeometry = new THREE.BoxGeometry(0.4, 2, 0.4);
+          const postMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
+          const post1 = new THREE.Mesh(postGeometry, postMaterial);
+          post1.position.set(-2.3, 1, 0);
+          post1.castShadow = true;
+          post1.receiveShadow = true;
+          fenceGroup.add(post1);
+          
+          const post2 = new THREE.Mesh(postGeometry, postMaterial);
+          post2.position.set(2.3, 1, 0);
+          post2.castShadow = true;
+          post2.receiveShadow = true;
+          fenceGroup.add(post2);
+          
+          fenceGroup.position.copy(position);
+          fenceGroup.rotation.copy(buildPreview.rotation);
+          scene.add(fenceGroup);
+          finalBuilding = fenceGroup;
+          break;
+      }
+      
+      // Add to game state
+      gameState.buildings.push({
+        type: type,
+        position: position,
+        object: finalBuilding
+      });
+      
+      // Deduct cost
+      gameState.money -= costs[type];
+      updateUI();
+      
+      // Remove preview
+      scene.remove(buildPreview);
+      buildPreview = null;
+      
+      // Exit build mode
+      gameState.buildMode = false;
+      gameState.currentBuildItem = null;
+      
+      showActionText("Built " + type + "!");
+    }
+
+    function buyAnimal(type) {
+      const costs = {
+        cow: 150,
+        chicken: 25
+      };
+      
+      if (gameState.money < costs[type]) {
+        showActionText("Not enough money to buy " + type);
+        return;
+      }
+      
+      // Check if there's an appropriate building
+      let canBuy = false;
+      if (type === 'cow' && gameState.buildings.some(b => b.type === 'barn')) {
+        canBuy = true;
+      } else if (type === 'chicken' && gameState.buildings.some(b => b.type === 'coop')) {
+        canBuy = true;
+      }
+      
+      if (!canBuy) {
+        showActionText("You need to build a " + (type === 'cow' ? 'barn' : 'coop') + " first");
+        return;
+      }
+      
+      // Find a building to place the animal near
+      const building = gameState.buildings.find(b => 
+        (type === 'cow' && b.type === 'barn') || (type === 'chicken' && b.type === 'coop')
+      );
+      
+      // Create the animal
+      let animal;
+      const offset = new THREE.Vector3(
+        (Math.random() - 0.5) * 5,
+        0,
+        (Math.random() - 0.5) * 5
+      );
+      const position = building.position.clone().add(offset);
+      
+      if (type === 'cow') {
+        const cowGroup = new THREE.Group();
+        
+        // Cow body
+        const bodyGeometry = new THREE.BoxGeometry(1.5, 1, 2.5);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 1;
+        body.castShadow = true;
+        cowGroup.add(body);
+        
+        // Cow head
+        const headGeometry = new THREE.BoxGeometry(0.8, 0.8, 1);
+        const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, 1.4, 1.5);
+        head.castShadow = true;
+        cowGroup.add(head);
+        
+        // Legs
+        const legGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
+        const legMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        
+        const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+        leg1.position.set(0.5, 0.5, 0.8);
+        leg1.castShadow = true;
+        cowGroup.add(leg1);
+        
+        const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+        leg2.position.set(-0.5, 0.5, 0.8);
+        leg2.castShadow = true;
+        cowGroup.add(leg2);
+        
+        const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+        leg3.position.set(0.5, 0.5, -0.8);
+        leg3.castShadow = true;
+        cowGroup.add(leg3);
+        
+        const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+        leg4.position.set(-0.5, 0.5, -0.8);
+        leg4.castShadow = true;
+        cowGroup.add(leg4);
+        
+        // Spots
+        const spotGeometry = new THREE.CircleGeometry(0.3, 8);
+        const spotMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.DoubleSide });
+        
+        const spot1 = new THREE.Mesh(spotGeometry, spotMaterial);
+        spot1.position.set(0.5, 1, 0.5);
+        spot1.rotation.y = Math.PI / 2;
+        cowGroup.add(spot1);
+        
+        const spot2 = new THREE.Mesh(spotGeometry, spotMaterial);
+        spot2.position.set(-0.5, 1, -0.5);
+        spot2.rotation.y = Math.PI / 2;
+        cowGroup.add(spot2);
+        
+        cowGroup.position.copy(position);
+        scene.add(cowGroup);
+        animal = cowGroup;
+      } else if (type === 'chicken') {
+        const chickenGroup = new THREE.Group();
+        
+        // Chicken body
+        const bodyGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.4;
+        body.castShadow = true;
+        chickenGroup.add(body);
+        
+        // Chicken head
+        const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+        const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, 0.7, 0.3);
+        head.castShadow = true;
+        chickenGroup.add(head);
+        
+       // Beak
+       const beakGeometry = new THREE.ConeGeometry(0.1, 0.2, 4);
+        const beakMaterial = new THREE.MeshStandardMaterial({ color: 0xFFA500 });
+        const beak = new THREE.Mesh(beakGeometry, beakMaterial);
+        beak.position.set(0, 0.7, 0.5);
+        beak.rotation.x = -Math.PI / 2;
+        beak.castShadow = true;
+        chickenGroup.add(beak);
+        
+        // Legs
+        const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+        const legMaterial = new THREE.MeshStandardMaterial({ color: 0xFFA500 });
+        
+        const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+        leg1.position.set(0.1, 0.15, 0);
+        leg1.castShadow = true;
+        chickenGroup.add(leg1);
+        
+        const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+        leg2.position.set(-0.1, 0.15, 0);
+        leg2.castShadow = true;
+        chickenGroup.add(leg2);
+        
+        chickenGroup.position.copy(position);
+        scene.add(chickenGroup);
+        animal = chickenGroup;
+      }
+      
+      // Add to game state
+      gameState.animals.push({
+        type: type,
+        position: position,
+        object: animal,
+        lastHarvest: Date.now(),
+        // Add movement data for animals
+        moveTarget: new THREE.Vector3(),
+        movingToTarget: false,
+        lastMoveTime: Date.now()
+      });
+      
+      // Deduct cost
+      gameState.money -= costs[type];
+      updateUI();
+      
+      document.getElementById('buildMenu').style.display = 'none';
+      showActionText("Bought a " + type + "!");
+    }
+
+    // Interaction system
+    function interact() {
+      // Check for nearby animals to interact with
+      const playerPos = new THREE.Vector3(
+        camera.position.x,
+        0,
+        camera.position.z
+      );
+      
+      let closestAnimal = null;
+      let closestDistance = 5; // Max interaction distance
+      
+      for (const animal of gameState.animals) {
+        const distance = playerPos.distanceTo(animal.position);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestAnimal = animal;
+        }
+      }
+      
+      if (closestAnimal) {
+        harvestAnimal(closestAnimal);
+      }
+    }
+
+    function harvestAnimal(animal) {
+      const now = Date.now();
+      const timeSinceLastHarvest = now - animal.lastHarvest;
+      
+      // Can only harvest every 30 seconds (in a real game this would be longer)
+      if (timeSinceLastHarvest < 30000) {
+        const timeLeft = Math.ceil((30000 - timeSinceLastHarvest) / 1000);
+        showActionText(`Can harvest ${animal.type} again in ${timeLeft} seconds`);
+        return;
+      }
+      
+      // Harvest resources
+      let amount = 0;
+      if (animal.type === 'cow') {
+        amount = Math.floor(Math.random() * 50) + 50; // $50-100
+        gameState.inventory.milk += 1;
+        showActionText(`Harvested milk from cow: +$${amount}, +1 Milk`);
+      } else if (animal.type === 'chicken') {
+        amount = Math.floor(Math.random() * 15) + 10; // $10-25
+        gameState.inventory.eggs += 1;
+        showActionText(`Collected eggs from chicken: +$${amount}, +1 Egg`);
+      }
+      
+      // Update game state
+      gameState.money += amount;
+      animal.lastHarvest = now;
+      
+      // Show floating text
+      createFloatingText(`+$${amount}`, animal.position.x, animal.position.y + 2, animal.position.z);
+      
+      updateUI();
+    }
+
+    // Floating text for rewards
+    function createFloatingText(text, x, y, z) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = 256;
+      canvas.height = 128;
+      
+      context.font = 'Bold 40px Arial';
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, 128, 64);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.SpriteMaterial({ 
+        map: texture,
+        transparent: true
+      });
+      const sprite = new THREE.Sprite(material);
+      sprite.position.set(x, y, z);
+      sprite.scale.set(2, 1, 1);
+      
+      scene.add(sprite);
+      
+      // Animation
+      let opacity = 1;
+      let height = 0;
+      
+      const animate = function() {
+        height += 0.03;
+        opacity -= 0.02;
+        
+        if (opacity <= 0) {
+          scene.remove(sprite);
+          return;
+        }
+        
+        sprite.position.y = y + height;
+        sprite.material.opacity = opacity;
+        
+        requestAnimationFrame(animate);
+      };
+      
+      animate();
+    }
+
+    // Animal movement
+    function updateAnimals(delta) {
+      for (const animal of gameState.animals) {
+        // Decide if animal should move to a new location
+        const now = Date.now();
+        if (!animal.movingToTarget && now - animal.lastMoveTime > 5000) {
+          // Find a random position near its home building
+          const homeBuilding = gameState.buildings.find(b => 
+            (animal.type === 'cow' && b.type === 'barn') || 
+            (animal.type === 'chicken' && b.type === 'coop')
+          );
+          
+          if (homeBuilding) {
+            const offset = new THREE.Vector3(
+              (Math.random() - 0.5) * 8,
+              0,
+              (Math.random() - 0.5) * 8
+            );
+            animal.moveTarget = homeBuilding.position.clone().add(offset);
+            animal.movingToTarget = true;
+          }
+        }
+        
+        // Move towards target
+        if (animal.movingToTarget) {
+          const direction = new THREE.Vector3().subVectors(animal.moveTarget, animal.position);
+          const distance = direction.length();
+          
+          if (distance < 0.1) {
+            // Reached destination
+            animal.movingToTarget = false;
+            animal.lastMoveTime = now;
+          } else {
+            // Move towards target
+            direction.normalize();
+            
+            // Slower movement for animals
+            const speed = animal.type === 'cow' ? 0.5 : 0.7;
+            const step = speed * delta;
+            
+            // Don't move faster than the remaining distance
+            const actualStep = Math.min(step, distance);
+            const movement = direction.multiplyScalar(actualStep);
+            
+            animal.position.add(movement);
+            animal.object.position.copy(animal.position);
+            
+            // Rotate animal to face movement direction
+            if (movement.length() > 0) {
+              const targetRotation = Math.atan2(movement.x, movement.z);
+              animal.object.rotation.y = targetRotation;
+            }
+          }
+        }
+      }
+    }
+
+    // Rain effect
+    let rainGroup = null;
+    let isRaining = false;
+    let rainStartTime = 0;
+    let rainDuration = 0;
+    
+    function createRain() {
+      const rainGroup = new THREE.Group();
+      const rainParticles = [];
+      
+      for (let i = 0; i < 1000; i++) {
+        const rainGeometry = new THREE.BoxGeometry(0.05, 0.5, 0.05);
+        const rainMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x9EB0FF, 
+          transparent: true,
+          opacity: 0.6
+        });
+        const rain = new THREE.Mesh(rainGeometry, rainMaterial);
+        
+        // Position randomly in the sky
+        const x = (Math.random() - 0.5) * 100;
+        const y = Math.random() * 50 + 20;
+        const z = (Math.random() - 0.5) * 100;
+        
+        rain.position.set(x, y, z);
+        rain.castShadow = false;
+        
+        rainGroup.add(rain);
+        rainParticles.push({
+          mesh: rain,
+          velocity: Math.random() * 0.5 + 0.5,
+          initialY: y
+        });
+      }
+      
+      return { group: rainGroup, particles: rainParticles };
+    }
+
+    function toggleRain() {
+      const currentTime = Date.now();
+      
+      if (!isRaining) {
+        // 2% chance to start raining every 10 seconds if not already raining
+        if (Math.random() < 0.02) {
+          isRaining = true;
+          const rain = createRain();
+          rainGroup = rain.group;
+          rainParticles = rain.particles;
+          scene.add(rainGroup);
+          rainStartTime = currentTime;
+          // Set random duration between 3-5 minutes (180000-300000 ms)
+          rainDuration = Math.random() * 120000 + 180000;
+          showActionText("It started raining!");
+        }
+      } else {
+        // Check if rain duration has elapsed
+        if (currentTime - rainStartTime > rainDuration) {
+          isRaining = false;
+          if (rainGroup) {
+            scene.remove(rainGroup);
+            rainGroup = null;
+            rainParticles = [];
+          }
+          showActionText("The rain has stopped!");
+        }
+      }
+    }
+
+    function updateRain() {
+      if (!isRaining || !rainGroup) return;
+      
+      for (const particle of rainParticles) {
+        particle.mesh.position.y -= particle.velocity;
+        
+        // Reset when it hits the ground
+        if (particle.mesh.position.y < 0) {
+          particle.mesh.position.y = particle.initialY;
+        }
+      }
+    }
+
+    // Update the day/night cycle function
+    function updateDayNightCycle(delta) {
+      const cycleSpeed = (Math.PI * 2) / (20 * 60);
+      gameState.dayNightCycle += delta * cycleSpeed;
+      
+      if (gameState.dayNightCycle > Math.PI * 2) {
+        gameState.dayNightCycle = 0;
+        
+        let dailyIncome = 0;
+        gameState.animals.forEach(animal => {
+          if (animal.type === 'cow') {
+            dailyIncome += 30;
+          } else if (animal.type === 'chicken') {
+            dailyIncome += 10;
+          }
+        });
+        
+        if (dailyIncome > 0) {
+          gameState.money += dailyIncome;
+          gameState.lastIncome = dailyIncome;
+          showActionText(`Daily income from animals: +$${dailyIncome}`);
+          updateUI();
+        }
+      }
+      
+      const angle = gameState.dayNightCycle;
+      const radius = 200;
+      const sunX = Math.cos(angle) * radius;
+      const sunHeight = Math.sin(angle) * radius;
+      const sunZ = 0;
+      
+      sun.position.set(sunX, Math.max(0, sunHeight), sunZ);
+      moon.position.set(-sunX, -sunHeight, sunZ);
+      directionalLight.position.copy(sun.position);
+      
+      const isDay = sunHeight > 0;
+      const normalizedTime = (angle % (Math.PI * 2)) / (Math.PI * 2); // 0 to 1 over full cycle
+      
+      // Calculate star visibility based on time
+      let starOpacity = 0;
+      if (!isDay) {
+        // Full night
+        starOpacity = 1;
+      } else if (normalizedTime < 0.2) {
+        // Dawn transition (stars fade out)
+        starOpacity = 1 - (normalizedTime / 0.2);
+      } else if (normalizedTime > 0.8) {
+        // Dusk transition (stars fade in)
+        starOpacity = (normalizedTime - 0.8) / 0.2;
+      }
+      
+      // Apply star visibility with smooth transition
+      starsGroup.visible = starOpacity > 0;
+      starsGroup.children.forEach(star => {
+        star.material.opacity = starOpacity;
+      });
+      
+      // Rotate stars slowly only when visible
+      if (starsGroup.visible) {
+        starsGroup.rotation.y += delta * 0.01;
+      }
+      
+      // Calculate light intensity and color based on time of day
+      let lightIntensity;
+      let lightColor;
+      let ambientIntensity;
+      let skyColor;
+      
+      if (isDay) {
+        if (isRaining) {
+          lightIntensity = 8;
+          lightColor = new THREE.Color(0xCCCCCC); // Grayish for rainy day
+          ambientIntensity = 0.3;
+          skyColor = new THREE.Color(0.3, 0.3, 0.35);
+        } else {
+          if (normalizedTime < 0.2) {
+            // Pre-dawn to Sunrise (deep blue to orange-pink)
+            const dawnProgress = normalizedTime / 0.2;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0x1a237e), // Deep night blue
+              new THREE.Color(0xff9e80), // Soft orange-pink sunrise
+              dawnProgress
+            );
+          } else if (normalizedTime < 0.3) {
+            // Sunrise to Morning (orange-pink to light blue)
+            const sunriseProgress = (normalizedTime - 0.2) / 0.1;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0xff9e80), // Soft orange-pink sunrise
+              new THREE.Color(0x90caf9), // Light morning blue
+              sunriseProgress
+            );
+          } else if (normalizedTime < 0.5) {
+            // Morning to Noon (light blue to deep sky blue)
+            const morningProgress = (normalizedTime - 0.3) / 0.2;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0x90caf9), // Light morning blue
+              new THREE.Color(0x2196f3), // Deep sky blue
+              morningProgress
+            );
+          } else if (normalizedTime < 0.7) {
+            // Noon to Late Afternoon (deep sky blue to lighter blue)
+            const afternoonProgress = (normalizedTime - 0.5) / 0.2;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0x2196f3), // Deep sky blue
+              new THREE.Color(0x64b5f6), // Lighter afternoon blue
+              afternoonProgress
+            );
+          } else if (normalizedTime < 0.8) {
+            // Late Afternoon to Sunset (lighter blue to golden-orange)
+            const sunsetProgress = (normalizedTime - 0.7) / 0.1;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0x64b5f6), // Lighter afternoon blue
+              new THREE.Color(0xffa726), // Golden-orange sunset
+              sunsetProgress
+            );
+          } else {
+            // Sunset to Night (golden-orange to deep blue)
+            const nightProgress = (normalizedTime - 0.8) / 0.2;
+            skyColor = new THREE.Color().lerpColors(
+              new THREE.Color(0xffa726), // Golden-orange sunset
+              new THREE.Color(0x1a237e), // Deep night blue
+              nightProgress
+            );
+          }
+        }
+      } else {
+        // Night gradient (deep blue to slightly lighter blue)
+        const nightProgress = (normalizedTime - 0.5) * 2;
+        skyColor = new THREE.Color().lerpColors(
+          new THREE.Color(0x1a237e), // Deep night blue
+          new THREE.Color(0x0d47a1), // Slightly lighter night blue
+          Math.sin(nightProgress * Math.PI)
+        );
+      }
+      
+      // Update scene background and fog
+      if (skyColor) {
+        scene.background = skyColor;
+        updateFog(skyColor);
+      }
+      
+      // Update cloud colors based on time
+      const cloudBrightness = isDay ? (isRaining ? 0.6 : 1.0) : 0.3;
+      clouds.forEach(cloud => {
+        cloud.object.children.forEach(particle => {
+          particle.material.opacity = isRaining ? 0.9 : 0.8;
+          particle.material.color.setRGB(cloudBrightness, cloudBrightness, cloudBrightness);
+        });
+      });
+      
+      // Update clouds position
+      updateClouds(delta);
+      
+      // Update celestial visibility
+      sun.visible = isDay;
+      moon.visible = !isDay;
+      starsGroup.visible = !isDay;
+      
+      // Rotate stars slowly
+      starsGroup.rotation.y += delta * 0.01;
+    }
+
+    // UI functions
+    function updateUI() {
+      document.getElementById('money').textContent = gameState.money;
+      document.getElementById('animalCount').textContent = gameState.animals.length;
+      document.getElementById('buildingCount').textContent = gameState.buildings.length;
+      
+      // Update inventory display
+      const actionText = document.getElementById('actionText');
+      if (gameState.choppingTree) {
+        actionText.textContent = `Chopping tree... ${Math.floor(gameState.chopProgress)}%`;
+      }
+      
+      // Add logs count to UI
+      const inventoryText = `Logs: ${gameState.inventory.logs}`;
+      document.getElementById('inventory').textContent = inventoryText;
+    }
+
+    function showActionText(text) {
+      const actionText = document.getElementById('actionText');
+      actionText.textContent = text;
+      
+      // Clear after 3 seconds
+      setTimeout(() => {
+        if (actionText.textContent === text) {
+          actionText.textContent = '';
+        }
+      }, 3000);
+    }
+
+    // Main game loop
+    const clock = new THREE.Clock();
+    
+    // Add at the beginning of the script section
+    let gameStarted = false;
+
+    function startGame() {
+      gameStarted = true;
+      document.getElementById('startGameUI').style.display = 'none';
+      document.getElementById('gameCanvas').classList.remove('blurred');
+      document.getElementById('instructions').style.display = 'block';
+      renderer.domElement.requestPointerLock();
+    }
+
+    // Modify the animate function to check if game has started
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      const delta = clock.getDelta();
+      
+      // Only process game logic if the game has started
+      if (gameStarted) {
+        // Handle movement
+        if (document.pointerLockElement === renderer.domElement && !gameState.inventoryOpen) {
+          direction.z = Number(keys.w) - Number(keys.s);
+          direction.x = Number(keys.d) - Number(keys.a);
+          direction.normalize();
+          
+          // Apply sprint and crouch multipliers
+          let currentMoveSpeed = BASE_MOVE_SPEED;
+          if (keys.shift && !isCrouching) {
+            currentMoveSpeed *= SPRINT_MULTIPLIER;
+            sprintBobMultiplier = 1.5;
+          } else if (isCrouching) {
+            currentMoveSpeed *= CROUCH_MULTIPLIER;
+            sprintBobMultiplier = 0.5;
+          } else {
+            sprintBobMultiplier = 1;
+          }
+          
+          if (keys.w || keys.a || keys.s || keys.d) {
+            velocity.z = direction.z * currentMoveSpeed;
+            velocity.x = direction.x * currentMoveSpeed;
+            
+            // Enhanced head bobbing while moving
+            const now = Date.now();
+            if (now - lastBobUpdate > 16) { // ~60fps
+              bobOffset = Math.sin(now * (0.01 * sprintBobMultiplier)) * 0.1;
+              lastBobUpdate = now;
+            }
+          } else {
+            velocity.z *= 0.9;
+            velocity.x *= 0.9;
+            bobOffset *= 0.9;
+          }
+          
+          // Apply gravity and handle jumping
+          verticalVelocity += GRAVITY * delta;
+          playerPosition.y += verticalVelocity * delta;
+          
+          // Ground check and collision
+          const targetHeight = isCrouching ? CROUCH_HEIGHT : STANDING_HEIGHT;
+          if (playerPosition.y <= targetHeight) {
+            playerPosition.y = targetHeight;
+            verticalVelocity = 0;
+            isJumping = false;
+            canJump = true;
+          }
+          
+          // Move in camera direction
+          const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
+          const cameraForward = new THREE.Vector3(cameraDirection.x, 0, cameraDirection.z).normalize();
+          const cameraRight = new THREE.Vector3(-cameraDirection.z, 0, cameraDirection.x).normalize();
+          
+          const forward = cameraForward.multiplyScalar(velocity.z);
+          const right = cameraRight.multiplyScalar(velocity.x);
+          
+          // Calculate new position
+          const newPosition = playerPosition.clone().add(forward).add(right);
+          
+          // Check for collisions before updating position
+          if (!checkCollision(newPosition)) {
+            playerPosition.copy(newPosition);
+          
+            // Ensure player stays within bounds
+            const maxDistance = 200;
+            if (playerPosition.length() > maxDistance) {
+              playerPosition.normalize().multiplyScalar(maxDistance);
+            }
+          
+            // Update camera position with head bobbing and crouch height
+            camera.position.x = playerPosition.x;
+            camera.position.z = playerPosition.z;
+            camera.position.y = playerPosition.y + bobOffset;
+          }
+        }
+        
+        // Update building preview position
+        if (gameState.buildMode && buildPreview) {
+          // Position in front of player
+          const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
+          cameraDirection.y = 0;
+          cameraDirection.normalize();
+          
+          const previewDistance = 5;
+          const previewPosition = camera.position.clone().add(
+            cameraDirection.multiplyScalar(previewDistance)
+          );
+          
+          // Snap to ground
+          previewPosition.y = 0;
+          
+          buildPreview.position.copy(previewPosition);
+          
+          // Rotate preview with scroll wheel
+          renderer.domElement.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            buildPreview.rotation.y += event.deltaY * 0.01;
+          });
+        }
+        
+        // Check for building placement
+        if (gameState.buildMode && document.pointerLockElement === renderer.domElement) {
+          document.onclick = function() {
+            placeBuilding();
+          };
+        } else {
+          document.onclick = null;
+        }
+        
+        // Update animals
+        updateAnimals(delta);
+        
+        // Update day/night cycle
+        updateDayNightCycle(delta);
+        
+        // Random weather changes
+        toggleRain();
+        
+        // Update chopping
+        updateChopping(delta);
+        
+        // Update falling trees
+        updateFallingTrees(delta);
+        
+        // Update vehicles
+        updateVehicles(delta);
+        
+        // Only process player movement if not in vehicle
+        if (!gameState.inVehicle) {
+          // ... existing player movement code ...
+        }
+      }
+      
+      // Always render the scene
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Initialize UI
+    updateUI();
+    
+    // Start animation
+    animate();
+    
+    // Set background color
+    scene.background = new THREE.Color(0x87CEEB);
+
+    // Initialize colliders
+    initializeColliders();
+
+    // Add chopping mechanics
+    function startChopping(event) {
+      if (gameState.buildMode) return; // Don't chop while building
+      
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      
+      // Calculate mouse position in normalized device coordinates
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Check for tree intersections
+      const treeIntersects = [];
+      gameState.trees.forEach(tree => {
+        const trunkIntersects = raycaster.intersectObject(tree.trunk);
+        if (trunkIntersects.length > 0) {
+          treeIntersects.push({ tree, distance: trunkIntersects[0].distance });
+        }
+      });
+      
+      // Sort by distance and get closest
+      treeIntersects.sort((a, b) => a.distance - b.distance);
+      
+      if (treeIntersects.length > 0) {
+        const closestTree = treeIntersects[0].tree;
+        const distance = treeIntersects[0].distance;
+        
+        // Check if within chopping range (4 units)
+        if (distance <= 4) {
+          gameState.choppingTree = closestTree;
+          gameState.chopProgress = 0;
+        }
+      }
+    }
+
+    function updateChopping(delta) {
+      if (!gameState.choppingTree) return;
+      
+      // Check if still in range
+      const playerPos = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+      const treePos = gameState.choppingTree.position;
+      const distance = playerPos.distanceTo(treePos);
+      
+      if (distance > 4) {
+        gameState.choppingTree = null;
+        gameState.chopProgress = 0;
+        return;
+      }
+      
+      // Update chopping progress
+      gameState.chopProgress += delta * 50;
+      
+      // Shake animation
+      const shakeAmount = Math.sin(gameState.chopProgress * 10) * 0.05;
+      gameState.choppingTree.trunk.rotation.z = shakeAmount;
+      gameState.choppingTree.foliage.rotation.z = shakeAmount * 0.5;
+      
+      // Check if tree is chopped
+      if (gameState.chopProgress >= 100) {
+        // Add logs to inventory
+        const logsGained = Math.floor(Math.random() * 3) + 2;
+        gameState.inventory.logs += logsGained;
+        
+        // Show floating text
+        createFloatingText(`+${logsGained} Logs`, treePos.x, 2, treePos.z);
+        
+        // Calculate fall direction (away from player)
+        const fallDirection = new THREE.Vector3()
+          .subVectors(gameState.choppingTree.position, playerPos)
+          .normalize();
+        
+        // Add tree to falling trees array
+        gameState.fallingTrees.push({
+          tree: gameState.choppingTree,
+          fallDirection: fallDirection,
+          fallProgress: 0,
+          originalPosition: gameState.choppingTree.object.position.clone(),
+          rotationAxis: new THREE.Vector3(-fallDirection.z, 0, fallDirection.x).normalize()
+        });
+        
+        // Remove collider
+        colliders = colliders.filter(c => 
+          c.type !== 'tree' || 
+          c.position.distanceTo(gameState.choppingTree.position) > 0.1
+        );
+        
+        // Remove from trees array but keep the object in scene until fall animation completes
+        gameState.trees = gameState.trees.filter(t => t !== gameState.choppingTree);
+        
+        // Reset chopping state
+        gameState.choppingTree = null;
+        gameState.chopProgress = 0;
+        
+        // Update UI
+        updateUI();
+      }
+    }
+
+    function stopChopping() {
+      if (gameState.choppingTree) {
+        // Reset tree rotation
+        gameState.choppingTree.trunk.rotation.z = 0;
+        gameState.choppingTree.foliage.rotation.z = 0;
+        
+        // Reset chopping state
+        gameState.choppingTree = null;
+        gameState.chopProgress = 0;
+      }
+    }
+
+    // Add to event listeners
+    renderer.domElement.addEventListener('mousedown', (event) => {
+      if (event.button === 0) { // Left click
+        startChopping(event);
+      }
+    });
+
+    renderer.domElement.addEventListener('mouseup', (event) => {
+      if (event.button === 0) { // Left click
+        stopChopping();
+      }
+    });
+
+    // Add inventory functions
+    function toggleInventory() {
+      const inventoryUI = document.getElementById('inventory-ui');
+      gameState.inventoryOpen = !gameState.inventoryOpen;
+      
+      if (gameState.inventoryOpen) {
+        inventoryUI.style.display = 'block';
+        document.exitPointerLock();
+        updateInventoryUI();
+      } else {
+        inventoryUI.style.display = 'none';
+        renderer.domElement.requestPointerLock();
+      }
+    }
+
+    function updateInventoryUI() {
+      const inventoryGrid = document.querySelector('.inventory-grid');
+      inventoryGrid.innerHTML = '';
+      
+      const items = [
+        { name: 'Logs', icon: '🪵', count: gameState.inventory.logs },
+        { name: 'Milk', icon: '🥛', count: gameState.inventory.milk },
+        { name: 'Eggs', icon: '🥚', count: gameState.inventory.eggs },
+        { name: 'Wood', icon: '🪚', count: gameState.inventory.wood },
+        { name: 'Tools', icon: '🔨', count: gameState.inventory.tools }
+      ];
+      
+      items.forEach(item => {
+        const slot = document.createElement('div');
+        slot.className = 'inventory-slot';
+        slot.innerHTML = `
+          <div style="font-size: 24px;">${item.icon}</div>
+          <div>${item.name}</div>
+          <div class="item-count">${item.count}</div>
+        `;
+        inventoryGrid.appendChild(slot);
+      });
+    }
+
+    function updateFallingTrees(delta) {
+      const fallSpeed = 0.6; // Slower fall speed
+      const groundDelay = 3; // Seconds to stay on ground before disappearing
+      const removeList = [];
+      
+      for (const fallingTree of gameState.fallingTrees) {
+        // Initialize groundTime if not set
+        if (fallingTree.groundTime === undefined && fallingTree.fallProgress >= 1) {
+          fallingTree.groundTime = 0;
+        }
+        
+        // Update fall progress
+        if (fallingTree.fallProgress < 1) {
+          fallingTree.fallProgress += delta * fallSpeed;
+          
+          // Smooth out the fall animation with easing
+          const easeProgress = 1 - Math.pow(1 - Math.min(fallingTree.fallProgress, 1), 3);
+          const fallAngle = easeProgress * Math.PI / 2;
+          
+          // Update tree position and rotation
+          fallingTree.tree.object.position.copy(fallingTree.originalPosition);
+          fallingTree.tree.object.quaternion.setFromAxisAngle(fallingTree.rotationAxis, fallAngle);
+          
+          // Add forward movement as tree falls
+          const forwardDistance = Math.sin(fallAngle) * 4; // Reduced from 6 to 4 for less movement
+          const fallOffset = new THREE.Vector3()
+            .copy(fallingTree.fallDirection)
+            .multiplyScalar(forwardDistance);
+          
+          fallingTree.tree.object.position.add(fallOffset);
+        } else {
+          // Update ground time
+          fallingTree.groundTime += delta;
+          
+          // Remove after delay
+          if (fallingTree.groundTime >= groundDelay) {
+            removeList.push(fallingTree);
+            scene.remove(fallingTree.tree.object);
+          }
+        }
+      }
+      
+      // Remove completed falling trees
+      gameState.fallingTrees = gameState.fallingTrees.filter(tree => !removeList.includes(tree));
+    }
+
+    // Add jump effect function
+    function createJumpEffect(x, y, z, isDoubleJump) {
+      const particleCount = isDoubleJump ? 20 : 10;
+      const particles = [];
+      
+      for (let i = 0; i < particleCount; i++) {
+        const geometry = new THREE.SphereGeometry(0.1, 4, 4);
+        const material = new THREE.MeshBasicMaterial({
+          color: isDoubleJump ? 0x4CAF50 : 0xFFFFFF,
+          transparent: true,
+          opacity: 0.8
+        });
+        
+        const particle = new THREE.Mesh(geometry, material);
+        const angle = (i / particleCount) * Math.PI * 2;
+        const radius = 0.5;
+        
+        particle.position.set(
+          x + Math.cos(angle) * radius,
+          y,
+          z + Math.sin(angle) * radius
+        );
+        
+        particle.userData.velocity = new THREE.Vector3(
+          Math.cos(angle) * 0.1,
+          0.2,
+          Math.sin(angle) * 0.1
+        );
+        
+        scene.add(particle);
+        particles.push(particle);
+      }
+      
+      // Animate particles
+      const animate = function() {
+        let allParticlesRemoved = true;
+        
+        particles.forEach(particle => {
+          if (particle.material.opacity > 0) {
+            allParticlesRemoved = false;
+            particle.position.add(particle.userData.velocity);
+            particle.material.opacity -= 0.05;
+            particle.userData.velocity.y -= 0.01;
+          } else {
+            scene.remove(particle);
+          }
+        });
+        
+        if (!allParticlesRemoved) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      animate();
+    }
+
+    // Initialize the game with blurred background
+    document.getElementById('gameCanvas').classList.add('blurred');
+    document.getElementById('instructions').style.display = 'none';
+    
+    // Modify pointer lock event to only work after game starts
+    renderer.domElement.addEventListener('click', () => {
+      if (gameStarted && document.pointerLockElement !== renderer.domElement) {
+        renderer.domElement.requestPointerLock();
+      }
+    });
+
+    // Add vehicle system
+    function createVehicle(type, position) {
+      const vehicleGroup = new THREE.Group();
+      let wheelMeshes = [];
+      let vehicleBody;
+      
+      const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+      const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      
+      switch(type) {
+        case 'car':
+          // Car body
+          const carGeometry = new THREE.BoxGeometry(4, 1.5, 2);
+          const carMaterial = new THREE.MeshStandardMaterial({ color: 0x4287f5 });
+          vehicleBody = new THREE.Mesh(carGeometry, carMaterial);
+          vehicleBody.position.y = 1;
+          vehicleGroup.add(vehicleBody);
+          
+          // Car roof
+          const roofGeometry = new THREE.BoxGeometry(2.5, 1, 2);
+          const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x4287f5 });
+          const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+          roof.position.set(0, 2, 0);
+          vehicleGroup.add(roof);
+          
+          // Add wheels with corrected rotation
+          const wheelPositions = [
+            [-1.5, 0.4, 1], // Front left
+            [1.5, 0.4, 1],  // Front right
+            [-1.5, 0.4, -1], // Back left
+            [1.5, 0.4, -1]   // Back right
+          ];
+          
+          wheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.position.set(...pos);
+            // Rotate wheel to correct orientation
+            wheel.rotation.x = Math.PI / 2; // 90-degree rotation around X
+            wheelMeshes.push(wheel);
+            vehicleGroup.add(wheel);
+          });
+          break;
+          
+        case 'tractor':
+          // Tractor body
+          const tractorGeometry = new THREE.BoxGeometry(5, 2, 2.5);
+          const tractorMaterial = new THREE.MeshStandardMaterial({ color: 0x2e8b57 });
+          vehicleBody = new THREE.Mesh(tractorGeometry, tractorMaterial);
+          vehicleBody.position.y = 1.5;
+          vehicleGroup.add(vehicleBody);
+          
+          // Tractor cabin
+          const cabinGeometry = new THREE.BoxGeometry(2, 2, 2);
+          const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0x2e8b57 });
+          const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
+          cabin.position.set(-1, 2.5, 0);
+          vehicleGroup.add(cabin);
+          
+          // Large back wheels
+          const backWheelGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.5, 16);
+          const backWheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+          
+          const backWheelPositions = [
+            [-1.5, 0.8, 1.2],
+            [-1.5, 0.8, -1.2]
+          ];
+          
+          backWheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(backWheelGeometry, backWheelMaterial);
+            wheel.position.set(...pos);
+            wheel.rotation.x = Math.PI / 2; // 90-degree rotation around X
+            wheelMeshes.push(wheel);
+            vehicleGroup.add(wheel);
+          });
+          
+          // Smaller front wheels
+          const frontWheelPositions = [
+            [1.5, 0.4, 1],
+            [1.5, 0.4, -1]
+          ];
+          
+          frontWheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.position.set(...pos);
+            wheel.rotation.x = Math.PI / 2; // 90-degree rotation around X
+            wheelMeshes.push(wheel);
+            vehicleGroup.add(wheel);
+          });
+          break;
+          
+        case 'truck':
+          // Truck cab
+          const cabGeometry = new THREE.BoxGeometry(2.5, 2, 2.5);
+          const cabMaterial = new THREE.MeshStandardMaterial({ color: 0xc41e3a });
+          vehicleBody = new THREE.Mesh(cabGeometry, cabMaterial);
+          vehicleBody.position.set(-1, 1.5, 0);
+          vehicleGroup.add(vehicleBody);
+          
+          // Truck bed
+          const bedGeometry = new THREE.BoxGeometry(3, 1, 2.5);
+          const bedMaterial = new THREE.MeshStandardMaterial({ color: 0xc41e3a });
+          const bed = new THREE.Mesh(bedGeometry, bedMaterial);
+          bed.position.set(1, 1, 0);
+          vehicleGroup.add(bed);
+          
+          // Add wheels
+          const truckWheelPositions = [
+            [-1.5, 0.4, 1.2],  // Front left
+            [-1.5, 0.4, -1.2], // Front right
+            [1.5, 0.4, 1.2],   // Back left
+            [1.5, 0.4, -1.2]   // Back right
+          ];
+          
+          truckWheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.position.set(...pos);
+            wheel.rotation.x = Math.PI / 2; // 90-degree rotation around X
+            wheelMeshes.push(wheel);
+            vehicleGroup.add(wheel);
+          });
+          break;
+      }
+      
+      vehicleGroup.position.copy(position);
+      // Add initial 90-degree rotation
+      vehicleGroup.rotation.y = Math.PI / 2; // Rotate 90 degrees
+      scene.add(vehicleGroup);
+      
+      // Add vehicle physics properties
+      const vehicle = {
+        type: type,
+        object: vehicleGroup,
+        body: vehicleBody,
+        wheels: wheelMeshes,
+        position: vehicleGroup.position,
+        rotation: vehicleGroup.rotation,
+        velocity: new THREE.Vector3(),
+        angularVelocity: 0,
+        acceleration: 0,
+        steering: 0,
+        properties: {
+          maxSpeed: type === 'car' ? 30 : type === 'tractor' ? 15 : 25,
+          acceleration: type === 'car' ? 20 : type === 'tractor' ? 10 : 15,
+          handling: type === 'car' ? 2.5 : type === 'tractor' ? 1.5 : 2,
+          braking: type === 'car' ? 25 : type === 'tractor' ? 15 : 20
+        }
+      };
+      
+      gameState.vehicles.push(vehicle);
+      return vehicle;
+    }
+
+    function buyVehicle(type) {
+      const costs = {
+        car: 2000,
+        tractor: 3000,
+        truck: 4000
+      };
+      
+      if (gameState.money < costs[type]) {
+        showActionText("Not enough money to buy " + type);
+        return;
+      }
+      
+      // Place vehicle near player
+      const spawnOffset = new THREE.Vector3(5, 0, 5);
+      const spawnPosition = camera.position.clone().add(spawnOffset);
+      spawnPosition.y = 0;
+      
+      const vehicle = createVehicle(type, spawnPosition);
+      gameState.money -= costs[type];
+      updateUI();
+      
+      document.getElementById('vehicleShop').style.display = 'none';
+      showActionText(`Purchased ${type}!`);
+    }
+
+    function toggleVehicleShop() {
+      const vehicleShop = document.getElementById('vehicleShop');
+      if (vehicleShop.style.display === 'block') {
+        vehicleShop.style.display = 'none';
+        document.exitPointerLock();
+      } else {
+        vehicleShop.style.display = 'block';
+      }
+    }
+
+    function updateVehicles(delta) {
+      gameState.vehicles.forEach(vehicle => {
+        if (!gameState.inVehicle || vehicle !== gameState.currentVehicle) {
+          // Apply friction to stopped vehicles
+          vehicle.velocity.multiplyScalar(0.95);
+          vehicle.angularVelocity *= 0.95;
+        } else {
+          // Initialize physics properties if they don't exist
+          if (!vehicle.suspension) vehicle.suspension = { height: 0, velocity: 0 };
+          if (!vehicle.cameraShake) vehicle.cameraShake = { x: 0, y: 0, z: 0 };
+          if (!vehicle.brakeForce) vehicle.brakeForce = 0;
+          
+          const forward = new THREE.Vector3(
+            -Math.cos(vehicle.rotation.y),
+            0,
+            Math.sin(vehicle.rotation.y)
+          );
+          
+          // Smooth acceleration with inertia
+          const targetAcceleration = keys.w ? vehicle.properties.acceleration : 
+                                    keys.s ? -vehicle.properties.acceleration * 0.7 : 0;
+          vehicle.acceleration += (targetAcceleration - vehicle.acceleration) * delta * 3;
+          
+          // Apply acceleration
+          vehicle.velocity.add(forward.multiplyScalar(vehicle.acceleration * delta));
+          
+          // Speed-based steering
+          const speedFactor = vehicle.velocity.length() / vehicle.properties.maxSpeed;
+          const targetSteering = keys.a ? vehicle.properties.handling * 1.5 : 
+                                keys.d ? -vehicle.properties.handling * 1.5 : 0;
+          
+          // Improve steering response at different speeds
+          const maxSteeringAngle = THREE.MathUtils.lerp(1.5, 0.4, Math.pow(speedFactor, 1.5));
+          
+          // Faster steering response at low speeds, smoother at high speeds
+          const steeringResponse = THREE.MathUtils.lerp(6, 3, speedFactor);
+          vehicle.steering += (targetSteering * maxSteeringAngle - vehicle.steering) * delta * steeringResponse;
+          
+          // Enhanced turning physics
+          const turnMultiplier = 1.2;
+          vehicle.angularVelocity += vehicle.steering * delta * speedFactor * turnMultiplier;
+          
+          // Add slight drift effect at high speeds during sharp turns
+          if (Math.abs(vehicle.steering) > 0.5 && speedFactor > 0.6) {
+            const driftFactor = 0.15 * (speedFactor - 0.6);
+            vehicle.velocity.add(new THREE.Vector3(
+              Math.sin(vehicle.rotation.y) * driftFactor,
+              0,
+              Math.cos(vehicle.rotation.y) * driftFactor
+            ));
+          }
+          
+          // Suspension and bumps
+          const bumpiness = 0.02;
+          vehicle.suspension.velocity += (-vehicle.suspension.height - vehicle.suspension.velocity * 0.1) * delta * 20;
+          vehicle.suspension.height += vehicle.suspension.velocity * delta;
+          vehicle.suspension.height += (Math.random() - 0.5) * bumpiness * speedFactor;
+          
+          // Enhanced progressive braking system
+          const MAX_BRAKE_FORCE = 1.0;
+          const BRAKE_RAMP_SPEED = 2.0;
+          const MIN_SPEED_THRESHOLD = 0.1;
+          
+          if (keys.space) {
+            // Increase brake force gradually
+            vehicle.brakeForce = Math.min(vehicle.brakeForce + (BRAKE_RAMP_SPEED * delta), MAX_BRAKE_FORCE);
+          } else {
+            // Release brakes gradually
+            vehicle.brakeForce = Math.max(0, vehicle.brakeForce - (BRAKE_RAMP_SPEED * delta));
+          }
+
+          const currentSpeed = vehicle.velocity.length();
+          
+          if (currentSpeed > MIN_SPEED_THRESHOLD || vehicle.brakeForce > 0) {
+            // Calculate brake effectiveness based on speed
+            const brakeFadeAtSpeed = Math.max(0.3, 1 - (currentSpeed / (vehicle.properties.maxSpeed * 1.2)));
+            const surfaceFriction = 1.0; // Could vary based on terrain
+            const momentumFactor = Math.max(0.2, 1 - (currentSpeed / vehicle.properties.maxSpeed));
+            
+            // Apply braking force with all factors
+            const effectiveBrakeForce = vehicle.brakeForce * brakeFadeAtSpeed * surfaceFriction * momentumFactor;
+            vehicle.velocity.multiplyScalar(1 - (effectiveBrakeForce * delta * 2));
+            
+            // Additional rolling resistance at very low speeds
+            if (currentSpeed < MIN_SPEED_THRESHOLD && vehicle.brakeForce > 0) {
+              vehicle.velocity.multiplyScalar(0.8);
+            }
+          }
+          
+          // Speed limiting
+          const speed = vehicle.velocity.length();
+          if (speed > vehicle.properties.maxSpeed) {
+            const slowdown = 1 - ((speed - vehicle.properties.maxSpeed) / speed) * delta * 2;
+            vehicle.velocity.multiplyScalar(slowdown);
+          }
+          
+          // Ground friction
+          const frictionFactor = 1 - (delta * (0.5 + speedFactor * 0.5));
+          vehicle.velocity.multiplyScalar(frictionFactor);
+          vehicle.angularVelocity *= frictionFactor;
+          
+          // Camera shake
+          const shakeIntensity = speedFactor * 0.002;
+          vehicle.cameraShake.x = (Math.random() - 0.5) * shakeIntensity;
+          vehicle.cameraShake.y = (Math.random() - 0.5) * shakeIntensity;
+          vehicle.cameraShake.z = (Math.random() - 0.5) * shakeIntensity;
+        }
+        
+        // Update vehicle position and rotation
+        vehicle.position.add(vehicle.velocity.clone().multiplyScalar(delta));
+        vehicle.rotation.y += vehicle.angularVelocity * delta;
+        
+        // Apply suspension
+        if (vehicle.suspension) {
+          vehicle.object.position.y = vehicle.suspension.height + 0.5;
+        }
+        
+        // Enhanced wheel rotation with corrected axis
+        const wheelRotationSpeed = vehicle.velocity.length() * 0.5;
+        vehicle.wheels.forEach((wheel, index) => {
+          wheel.rotation.z += wheelRotationSpeed * delta; // Changed from x to z axis
+          if (index < 2) {
+            wheel.rotation.y = vehicle.steering * 0.5;
+          }
+        });
+        
+        // Enhanced camera system
+        if (gameState.inVehicle && vehicle === gameState.currentVehicle) {
+          // Initialize camera positions if needed
+          if (!vehicle.cameraPosition) vehicle.cameraPosition = new THREE.Vector3();
+          if (!vehicle.lookAtPosition) vehicle.lookAtPosition = new THREE.Vector3();
+          
+          if (gameState.vehicleCameraMode === 'follow') {
+            // Standard follow camera
+            const cameraOffset = new THREE.Vector3(
+              Math.cos(vehicle.rotation.y) * 7,
+              3.5,
+              -Math.sin(vehicle.rotation.y) * 7
+            );
+            
+            // Add camera shake
+            if (vehicle.cameraShake) {
+              cameraOffset.x += vehicle.cameraShake.x;
+              cameraOffset.y += vehicle.cameraShake.y;
+              cameraOffset.z += vehicle.cameraShake.z;
+            }
+            
+            const targetPosition = vehicle.position.clone().add(cameraOffset);
+            vehicle.cameraPosition.lerp(targetPosition, delta * 5);
+            camera.position.copy(vehicle.cameraPosition);
+            
+            const lookOffset = new THREE.Vector3(
+              Math.cos(vehicle.rotation.y) * 2,
+              0,
+              -Math.sin(vehicle.rotation.y) * 2
+            );
+            
+            const targetLookAt = vehicle.position.clone().add(lookOffset);
+            vehicle.lookAtPosition.lerp(targetLookAt, delta * 5);
+            camera.lookAt(vehicle.lookAtPosition);
+          } else {
+            // Free look camera
+            const baseOffset = new THREE.Vector3(0, 3.5, 0); // Camera height
+            const radius = 7; // Camera distance from vehicle
+            
+            // Calculate camera position based on rotation
+            const rotatedOffset = new THREE.Vector3(
+              Math.sin(gameState.vehicleCameraRotation.y) * Math.cos(gameState.vehicleCameraRotation.x) * radius,
+              Math.sin(gameState.vehicleCameraRotation.x) * radius,
+              Math.cos(gameState.vehicleCameraRotation.y) * Math.cos(gameState.vehicleCameraRotation.x) * radius
+            );
+            
+            // Add base height and vehicle position
+            const targetPosition = vehicle.position.clone().add(baseOffset).sub(rotatedOffset);
+            vehicle.cameraPosition.lerp(targetPosition, delta * 5);
+            camera.position.copy(vehicle.cameraPosition);
+            
+            // Look at vehicle
+            camera.lookAt(vehicle.position.clone().add(baseOffset));
+          }
+        }
+      });
+    }
+
+    function enterVehicle() {
+      if (gameState.inVehicle) {
+        // Exit vehicle
+        gameState.inVehicle = false;
+        gameState.currentVehicle = null;
+        camera.position.set(
+          gameState.currentVehicle.position.x,
+          playerHeight,
+          gameState.currentVehicle.position.z + 3
+        );
+        // Reset camera mode and rotation when exiting
+        gameState.vehicleCameraMode = 'free';
+        gameState.vehicleCameraRotation.x = 0;
+        gameState.vehicleCameraRotation.y = 0;
+      } else {
+        // Find nearest vehicle
+        const playerPos = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+        let nearestVehicle = null;
+        let nearestDistance = Infinity;
+        
+        gameState.vehicles.forEach(vehicle => {
+          const distance = playerPos.distanceTo(vehicle.position);
+          if (distance < nearestDistance && distance < 5) {
+            nearestDistance = distance;
+            nearestVehicle = vehicle;
+          }
+        });
+        
+        if (nearestVehicle) {
+          gameState.inVehicle = true;
+          gameState.currentVehicle = nearestVehicle;
+          // Initialize camera in free look mode
+          gameState.vehicleCameraMode = 'free';
+          gameState.vehicleCameraRotation.x = 0;
+          gameState.vehicleCameraRotation.y = 0;
+          showActionText(`Entered ${nearestVehicle.type} - Use mouse to look around, C to toggle camera mode`);
+        }
+      }
+    }
+
+    function resetVehicle() {
+      if (gameState.inVehicle && gameState.currentVehicle) {
+        gameState.currentVehicle.object.position.y = 0;
+        gameState.currentVehicle.velocity.set(0, 0, 0);
+        gameState.currentVehicle.angularVelocity = 0;
+        gameState.currentVehicle.object.rotation.x = 0;
+        gameState.currentVehicle.object.rotation.z = 0;
+      }
+    }
+
+    // Add to keydown event listener
+    document.addEventListener('keydown', (event) => {
+      switch (event.key.toLowerCase()) {
+        // ... existing cases ...
+        case 'v':
+          toggleVehicleShop();
+          break;
+        case 'f':
+          enterVehicle();
+          break;
+        case 'r':
+          resetVehicle();
+          break;
+      }
+    });
+  </script>
 </body>
 </html>
